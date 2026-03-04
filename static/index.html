@@ -2831,8 +2831,19 @@ function renderAyarlar(){
     <!-- BİLDİRİM -->
     <div class="card" style="margin-bottom:18px">
       <div class="section-title" style="margin-bottom:18px;font-size:15px">${icon('bell',16)} Bildirim Ayarları</div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Bildirim E-posta Adresleri</label>
+        <div id="s-email-tags" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;min-height:42px;cursor:text" onclick="document.getElementById('s-email-input').focus()">
+          ${(s.notifEmails||[s.notifEmail||'bekirkaraci@gmail.com']).filter(Boolean).map(e=>
+            `<span style="display:flex;align-items:center;gap:4px;background:rgba(0,212,170,.15);color:var(--accent);padding:3px 10px;border-radius:20px;font-size:12px">
+              ${e}<span onclick="removeEmailTag(this,'')" style="cursor:pointer;margin-left:2px;opacity:.7">✕</span>
+            </span>`).join('')}
+          <input id="s-email-input" type="email" placeholder="mail@domain.com + Enter" style="border:none;background:transparent;outline:none;font-size:13px;color:var(--text);min-width:200px;flex:1"
+            onkeydown="addEmailTag(event)">
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Enter veya virgül ile ekle</div>
+      </div>
       <div class="form-row">
-        <div class="form-group"><label>Bildirim E-posta</label><input id="s-email" type="email" value="${s.notifEmail||'bekirkaraci@gmail.com'}"></div>
         <div class="form-group"><label>Yaklaşan Gün Eşiği</label><input id="s-threshold" type="number" min="1" value="${s.threshold||30}"></div>
       </div>
       <div class="form-group"><label>Sıklık</label><select id="s-freq"><option ${s.freq==='Gunluk'?'selected':''}>Günlük</option><option ${s.freq==='Haftalık'?'selected':''}>Haftalık</option></select></div>
@@ -2843,6 +2854,7 @@ function renderAyarlar(){
       </div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="btn btn-primary btn-sm" onclick="saveNotif()">${icon('check',13)} Kaydet</button>
+        <button class="btn btn-ghost btn-sm" onclick="sendTestNotif()">${icon('bell',13)} Test Maili Gönder</button>
         <button class="btn btn-ghost btn-sm" onclick="testNotif()">${icon('bell',13)} Test Bildirimi</button>
       </div>
     </div>
@@ -2897,9 +2909,67 @@ function saveLogo(){
   renderAyarlar();
 }
 
+// Email tag fonksiyonları
+let _emailTags = [];
+function addEmailTag(e){
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    const val=document.getElementById('s-email-input').value.trim().replace(',','');
+    if(val&&val.includes('@')&&!_emailTags.includes(val)){
+      _emailTags.push(val);
+      refreshEmailTags();
+    }
+    document.getElementById('s-email-input').value='';
+  }
+}
+function removeEmailTag(el, email){
+  _emailTags=_emailTags.filter(e=>e!==email);
+  refreshEmailTags();
+}
+function refreshEmailTags(){
+  const container=document.getElementById('s-email-tags');
+  if(!container) return;
+  const input=document.getElementById('s-email-input');
+  container.innerHTML='';
+  _emailTags.forEach(email=>{
+    const span=document.createElement('span');
+    span.style.cssText='display:flex;align-items:center;gap:4px;background:rgba(0,212,170,.15);color:var(--accent);padding:3px 10px;border-radius:20px;font-size:12px';
+    span.innerHTML=email+'<span onclick="removeEmailTag(this)" data-email="'+email+'" style="cursor:pointer;margin-left:2px;opacity:.7">&#10005;</span>';
+    span.querySelector('span').onclick=function(){ removeEmailTag(null,this.dataset.email); };
+    container.appendChild(span);
+  });
+  container.appendChild(input);
+  input.focus();
+}
+
+async function sendTestNotif(){
+  toast('Mail gönderiliyor...','info');
+  try{
+    const r=await fetch('/api/send-notifications',{method:'POST'});
+    const d=await r.json();
+    if(d.ok) toast('Bildirim maili gönderildi!','success');
+    else toast('Hata: '+d.error,'error');
+  }catch(e){ toast('Bağlantı hatası','error'); }
+}
+
+// Ayarlar sayfası açılınca email tagları yükle
+function initEmailTags(){
+  const s=DB.get('settings')||{};
+  if(s.notifEmails && s.notifEmails.length){
+    _emailTags=s.notifEmails.slice();
+  } else if(s.notifEmail){
+    _emailTags=[s.notifEmail];
+  } else {
+    _emailTags=[];
+  }
+}
+
 function saveNotif(){
   const s=DB.get('settings')||{};
-  s.notifEmail=document.getElementById('s-email').value;
+  const inputVal=document.getElementById('s-email-input')?.value.trim();
+  if(inputVal&&inputVal.includes('@')&&!_emailTags.includes(inputVal)) _emailTags.push(inputVal);
+  s.notifEmails=_emailTags.slice();
+  s.notifEmail=_emailTags[0]||'';
   s.threshold=parseInt(document.getElementById('s-threshold').value)||30;
   s.freq=document.getElementById('s-freq').value==='Günlük'?'Gunluk':'Haftalık';
   s.notifTypes={
