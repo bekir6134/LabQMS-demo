@@ -2125,17 +2125,14 @@ function renderPersoneller(){
   c.innerHTML=`<div class="page">
     <div class="section-header">
       <div class="section-title">Personeller</div>
-      ${canEdit('personeller')?`<button class="btn btn-primary" onclick="openPersonelModal(null)">${icon('plus',14)} Personel Ekle</button>`:`<button class="btn btn-ghost" disabled data-tip="Yetkiniz yok">${icon('plus',14)} Ekle</button>`}
+      ${canEdit('personeller')?`<button class="btn btn-primary" onclick="openPersonelModal(null)">${icon('plus',14)} Personel Ekle</button>`:`<button class="btn btn-ghost" disabled>${icon('plus',14)} Ekle</button>`}
     </div>
     <div class="toolbar">
-      <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="p-search" type="text" placeholder="Ad, soyad, kullanıcı adı, görev..." oninput="renderPersonelTable()"></div>
+      <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="p-search" type="text" placeholder="Ad, soyad, görev..." oninput="renderPersonelTable()"></div>
       <select class="tb-select" id="p-rol" onchange="renderPersonelTable()"><option value="">Tüm Roller</option><option value="Yonetici">Yönetici</option><option value="Duzenleyebilir">Düzenleyebilir</option><option value="Goruntuleyebilir">Görüntüleyebilir</option></select>
       <select class="tb-select" id="p-durum" onchange="renderPersonelTable()"><option value="">Tüm</option><option value="aktif">Aktif</option><option value="pasif">Pasif</option></select>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Ad</th><th>Soyad</th><th>Görev</th><th>Eğitim</th><th>Yetkin Olduğu Alanlar</th><th>Rol</th><th>Kullanıcı Adı</th><th>Şifre</th><th>İşlemler</th></tr></thead>
-      <tbody id="p-tbody"></tbody>
-    </table></div>
+    <div id="p-cards-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;padding:4px 0"></div>
   </div>`;
   addPersonelModal();
   renderPersonelTable();
@@ -2145,7 +2142,8 @@ const ROL_LABELS={Yonetici:'Yönetici',Duzenleyebilir:'Düzenleyebilir',Goruntul
 const ROL_BADGES={Yonetici:'badge-red',Duzenleyebilir:'badge-blue',Goruntuleyebilir:'badge-gray'};
 
 function renderPersonelTable(){
-  const tbody=document.getElementById('p-tbody');if(!tbody)return;
+  const container=document.getElementById('p-cards-container');
+  if(!container) return;
   let persons=DB.get('personeller')||[];
   const q=(document.getElementById('p-search')?.value||'').toLowerCase();
   const rol=document.getElementById('p-rol')?.value||'';
@@ -2157,26 +2155,90 @@ function renderPersonelTable(){
     if(durum==='pasif'&&p.active)return false;
     return true;
   });
-  if(!persons.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty-state"><p>Personel bulunamadı</p></div></td></tr>`;return;}
-  tbody.innerHTML=persons.map(p=>{
-    const tags=p.alanlar||[];
-    const showTags=tags.slice(0,2);
-    const extra=tags.length-2;
-    const aktif=getActiveUser()?.id===p.id;
-    return `<tr style="${aktif?'background:rgba(79,107,240,.04)':''}">
-    <td class="strong">${p.ad}</td>
-    <td>${p.soyad}</td>
-    <td>${p.gorev||'-'}</td>
-    <td>${p.egitim||'-'}</td>
-    <td><div class="tag-pills">${showTags.map(t=>`<span class="tag-pill">${t}</span>`).join('')}${extra>0?`<span class="tag-pill tag-more">+${extra}</span>`:''}</div></td>
-    <td><span class="badge ${ROL_BADGES[p.rol]||'badge-gray'}">${ROL_LABELS[p.rol]||p.rol}</span></td>
-    <td>${p.username||'-'}${aktif?'<span style="font-size:10px;color:var(--accent);margin-left:4px">(aktif)</span>':''}</td>
-    <td><span class="masked">••••••</span></td>
-    <td><div class="action-btns">
-      ${canEdit('personeller')?`<button class="icon-btn" title="Düzenle" onclick="openPersonelModal('${p.id}')">${icon('edit',13)}</button>`:''}
-      ${canEdit('personeller')&&p.id!==getActiveUser()?.id?`<button class="icon-btn danger" title="Sil" onclick="deletePersonel('${p.id}')">${icon('trash',13)}</button>`:''}
-    </div></td>
-  </tr>`;}).join('');
+  if(!persons.length){
+    container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Personel bulunamadı</p></div>';
+    return;
+  }
+  const activeUser=getActiveUser();
+  container.innerHTML=persons.map(p=>{
+    const isAktif=activeUser?.id===p.id;
+    const belgeler=p.belgeler||{};
+    const toplamBelge=Object.values(belgeler).reduce((s,a)=>s+(a?a.length:0),0);
+    const perms=getUserPerms(p);
+    const modulKeys=Object.keys(perms);
+    const yetkiOzet=modulKeys.filter(m=>perms[m]?.e).length;
+    const gorOzet=modulKeys.filter(m=>perms[m]?.v&&!perms[m]?.e).length;
+    const initials=(p.ad?p.ad[0]:'')+(p.soyad?p.soyad[0]:'');
+    const rolColor=ROL_BADGES[p.rol]||'badge-gray';
+
+    // Yetki modülleri
+    const permRows=MODULES.map(m=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--text2)">${MODUL_LABELS[m]||m}</span>
+        <div style="display:flex;gap:6px">
+          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${perms[m]?.v?'rgba(0,212,170,.15)':'rgba(100,116,139,.1)'};color:${perms[m]?.v?'var(--accent)':'var(--text3)'}">Gör</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${perms[m]?.e?'rgba(79,107,240,.15)':'rgba(100,116,139,.1)'};color:${perms[m]?.e?'#7b9ff5':'var(--text3)'}">Düz</span>
+        </div>
+      </div>`).join('');
+
+    // Belgeler özeti
+    const belgeOzet=PERSONEL_BELGE_KATEGORILER.map(k=>{
+      const count=(belgeler[k.id]||[]).length;
+      return count>0?`<span onclick="showPersonelBelgeList('${p.id}','${k.id}')" style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(0,212,170,.1);color:var(--accent);cursor:pointer" onmouseover="this.style.background='rgba(0,212,170,.2)'" onmouseout="this.style.background='rgba(0,212,170,.1)'">${k.label}: ${count}</span>`:'';
+    }).filter(Boolean).join('');
+
+    return `<div style="background:var(--bg2);border:1px solid ${isAktif?'var(--accent)':'var(--border)'};border-radius:14px;overflow:hidden;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.2)'" onmouseout="this.style.boxShadow='none'">
+      <!-- Kart Başlık -->
+      <div style="padding:16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">
+        <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${p.ad} ${p.soyad} ${isAktif?'<span style="font-size:10px;color:var(--accent)">(Sen)</span>':''}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${p.gorev||'-'}</div>
+          <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            <span class="badge ${rolColor}">${ROL_LABELS[p.rol]||p.rol}</span>
+            <span class="badge ${p.active?'badge-green':'badge-red'}">${p.active?'Aktif':'Pasif'}</span>
+          </div>
+        </div>
+        ${canEdit('personeller')?`<div style="display:flex;flex-direction:column;gap:4px">
+          <button class="icon-btn" title="Düzenle" onclick="openPersonelModal('${p.id}')">${icon('edit',13)}</button>
+          ${p.id!==activeUser?.id?`<button class="icon-btn danger" title="Sil" onclick="deletePersonel('${p.id}')">${icon('trash',13)}</button>`:''}
+        </div>`:''}
+      </div>
+
+      <!-- Sekme içeriği - accordion -->
+      <div style="padding:12px 16px">
+        <!-- Bilgiler -->
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Bilgiler</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+            <div style="font-size:12px;color:var(--text2)">👤 ${p.username||'-'}</div>
+            <div style="font-size:12px;color:var(--text2)">🎓 ${p.egitim||'-'}</div>
+            ${p.alanlar&&p.alanlar.length?`<div style="font-size:12px;color:var(--text2);grid-column:1/-1">🔧 ${p.alanlar.join(', ')}</div>`:''}
+          </div>
+        </div>
+
+        <!-- Yetkiler -->
+        <details style="margin-bottom:10px">
+          <summary style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+            Yetkiler
+            <span style="font-size:11px;color:var(--text3);font-weight:400">${yetkiOzet} düzenleme · ${gorOzet} görüntüleme</span>
+          </summary>
+          <div style="margin-top:8px">${permRows}</div>
+        </details>
+
+        <!-- Belgeler -->
+        <details>
+          <summary style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
+            Belgeler
+            <span style="font-size:11px;color:${toplamBelge?'var(--accent)':'var(--text3)'};font-weight:400">${toplamBelge} dosya</span>
+          </summary>
+          <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">
+            ${belgeOzet||'<span style="font-size:12px;color:var(--text3)">Henüz belge yok</span>'}
+          </div>
+        </details>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function deletePersonel(id){
@@ -2191,7 +2253,7 @@ function addPersonelModal(){
   div.innerHTML=`<div class="modal-overlay" id="p-modal">
     <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="p-modal-title">Personel Ekle</div><div class="modal-close" onclick="closeModal('p-modal')">${icon('x-circle',16)}</div></div>
     <div class="modal-body">
-      <div class="tabs"><div class="tab active" onclick="switchPTab('bilgiler',this)">Bilgiler</div><div class="tab" onclick="switchPTab('yetki',this)">Yetkiler</div></div>
+      <div class="tabs"><div class="tab active" onclick="switchPTab('bilgiler',this)">Bilgiler</div><div class="tab" onclick="switchPTab('yetki',this)">Yetkiler</div><div class="tab" onclick="switchPTab('belgeler',this)">Belgeler</div></div>
       <div class="tab-content active" id="ptab-bilgiler">
         <div class="form-row">
           <div class="form-group"><label>Ad</label><input id="p-ad" type="text"></div>
@@ -2218,6 +2280,9 @@ function addPersonelModal(){
           <tbody id="perm-tbody"></tbody>
         </table>
       </div>
+      <div class="tab-content" id="ptab-belgeler">
+        <div id="p-belgeler-container"></div>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('p-modal')">İptal</button><button class="btn btn-primary" onclick="savePersonel()">Kaydet</button></div>
     </div>
@@ -2232,6 +2297,7 @@ function switchPTab(tab,el){
   el.classList.add('active');
   document.getElementById('ptab-'+tab).classList.add('active');
   if(tab==='yetki') renderPermTable();
+  if(tab==='belgeler') renderPersonelBelgeler();
 }
 
 let _editPersonelId=null;
@@ -2290,6 +2356,167 @@ function togglePw(inputId,icon){
   const inp=document.getElementById(inputId);
   if(inp.type==='password'){inp.type='text';icon.innerHTML=ICONS['eye-off'];}
   else{inp.type='password';icon.innerHTML=ICONS['eye'];}
+}
+
+
+// ==================== PERSONEL BELGELER ====================
+const PERSONEL_BELGE_KATEGORILER = [
+  {id:'egitim',       label:'Eğitim Sertifikaları'},
+  {id:'yetkinlik',    label:'Yetkinlik Dökümanı'},
+  {id:'oryantasyon',  label:'Oryantasyon Eğitimi'},
+  {id:'isbasi',       label:'İş Başı Eğitim Formu'},
+  {id:'saglik',       label:'Sağlık Raporu'},
+  {id:'isg',          label:'İSG Eğitimi'},
+  {id:'faaliyet',     label:'Faaliyet Yetkinlik'},
+  {id:'diger',        label:'Diğer Belgeler'}
+];
+
+function renderPersonelBelgeler(){
+  const container = document.getElementById('p-belgeler-container');
+  if(!container) return;
+  const persons = DB.get('personeller') || [];
+  const p = persons.find(x => x.id === _editPersonelId);
+  const belgeler = (p && p.belgeler) ? p.belgeler : {};
+
+  container.innerHTML = PERSONEL_BELGE_KATEGORILER.map(kat => {
+    const files = belgeler[kat.id] || [];
+    return `
+      <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2)">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${kat.label}</span>
+          <label style="cursor:pointer;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--accent);padding:4px 10px;border:1px solid var(--accent);border-radius:6px">
+            + Dosya Ekle
+            <input type="file" accept=".pdf,.xlsx,.xls" multiple style="display:none"
+              onchange="addPersonelBelge('${kat.id}',this)">
+          </label>
+        </div>
+        <div id="pbelge-${kat.id}" style="padding:${files.length?'8px 14px':'0'}">
+          ${files.length ? files.map((f,i) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:18px">${f.name.endsWith('.pdf') ? '📄' : '📊'}</span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
+                <div style="font-size:11px;color:var(--text3)">${f.tarih||''} &nbsp; ${formatFileSize(f.size||0)}</div>
+              </div>
+              <button onclick="downloadPersonelBelge('${kat.id}',${i})" title="İndir"
+                style="background:rgba(0,212,170,.1);border:1px solid var(--accent);border-radius:6px;cursor:pointer;color:var(--accent);padding:6px 12px;font-size:13px">⬇ İndir</button>
+              <button onclick="deletePersonelBelge('${kat.id}',${i})" title="Sil"
+                style="background:rgba(240,82,82,.1);border:1px solid var(--danger);border-radius:6px;cursor:pointer;color:var(--danger);padding:6px 12px;font-size:13px">🗑 Sil</button>
+            </div>`).join('') : `<div style="padding:10px 14px;font-size:12px;color:var(--text3)">Henüz belge yok</div>`}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function formatFileSize(bytes){
+  if(!bytes) return '';
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function addPersonelBelge(katId, input){
+  if(!_editPersonelId){ toast('Önce personeli kaydedin','error'); return; }
+  const files = Array.from(input.files);
+  if(!files.length) return;
+
+  const persons = DB.get('personeller') || [];
+  const pIdx = persons.findIndex(x => x.id === _editPersonelId);
+  if(pIdx === -1) return;
+
+  if(!persons[pIdx].belgeler) persons[pIdx].belgeler = {};
+  if(!persons[pIdx].belgeler[katId]) persons[pIdx].belgeler[katId] = [];
+
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e){
+      persons[pIdx].belgeler[katId].push({
+        name: file.name,
+        size: file.size,
+        tarih: new Date().toLocaleDateString('tr-TR'),
+        data: e.target.result
+      });
+      loaded++;
+      if(loaded === files.length){
+        DB.set('personeller', persons);
+        toast(loaded + ' dosya yüklendi', 'success');
+        renderPersonelBelgeler();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function deletePersonelBelge(katId, fileIdx){
+  if(!_editPersonelId) return;
+  const persons = DB.get('personeller') || [];
+  const pIdx = persons.findIndex(x => x.id === _editPersonelId);
+  if(pIdx === -1) return;
+  persons[pIdx].belgeler[katId].splice(fileIdx, 1);
+  DB.set('personeller', persons);
+  toast('Dosya silindi', 'success');
+  renderPersonelBelgeler();
+}
+
+function downloadPersonelBelge(katId, fileIdx, personId){
+  const pid = personId || _editPersonelId;
+  if(!pid) return;
+  const persons = DB.get('personeller') || [];
+  const p = persons.find(x => x.id === pid);
+  if(!p || !p.belgeler || !p.belgeler[katId]) return;
+  const f = p.belgeler[katId][fileIdx];
+  if(!f) return;
+  const a = document.createElement('a');
+  a.href = f.data;
+  a.download = f.name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Personel belge önizleme - kart veya modal'dan çağrılır
+function showPersonelBelgeList(personId, katId){
+  const persons = DB.get('personeller') || [];
+  const p = persons.find(x => x.id === personId);
+  if(!p) return;
+  const kat = PERSONEL_BELGE_KATEGORILER.find(k => k.id === katId);
+  const files = (p.belgeler && p.belgeler[katId]) ? p.belgeler[katId] : [];
+  if(!files.length){ toast('Bu kategoride belge yok','info'); return; }
+
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay open';
+  ov.style.zIndex = 4000;
+  ov.innerHTML = `
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <div class="modal-title">📁 ${kat ? kat.label : katId} — ${p.ad} ${p.soyad}</div>
+        <div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div>
+      </div>
+      <div class="modal-body" style="padding:16px">
+        ${files.map((f,i) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+            <span style="font-size:24px">${f.name.toLowerCase().endsWith('.pdf') ? '📄' : '📊'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
+              <div style="font-size:11px;color:var(--text3)">${f.tarih||''} · ${formatFileSize(f.size||0)}</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              ${f.name.toLowerCase().endsWith('.pdf') ? `
+                <button onclick="previewFile({data:'${f.data}',type:'application/pdf'})" 
+                  style="background:rgba(0,212,170,.1);border:1px solid var(--accent);border-radius:6px;cursor:pointer;color:var(--accent);padding:5px 10px;font-size:12px">
+                  👁 Önizle
+                </button>` : ''}
+              <button onclick="downloadPersonelBelge('${katId}',${i},'${personId}')"
+                style="background:rgba(79,107,240,.1);border:1px solid #7b9ff5;border-radius:6px;cursor:pointer;color:#7b9ff5;padding:5px 10px;font-size:12px">
+                ⬇ İndir
+              </button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
 }
 
 function savePersonel(){
