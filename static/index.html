@@ -279,7 +279,7 @@ td.strong{color:var(--text);font-weight:500}
 .tag-pill{background:var(--bg3);border:1px solid var(--border);border-radius:99px;padding:2px 8px;font-size:11px;color:var(--text2)}
 .tag-more{background:var(--primary);background:linear-gradient(135deg,var(--primary),var(--primary2));border:none;color:#fff}
 </style>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="app-loading" style="position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
@@ -966,7 +966,7 @@ function renderDokumanListesi(){
       <select class="tb-select" id="doc-sort" onchange="renderDocTable()"><option value="yayim">Yayım Tarihi</option><option value="revizyon">Revizyon Tarihi</option><option value="no">Revizyon No</option></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Prosedür Kodu</th><th>Tip</th><th>Prosedür Adı</th><th>Yayımlanma</th><th>Revizyon Tarihi</th><th>Rev No</th><th>Durum</th><th>İşlemler</th></tr></thead>
+      <thead id="dok-thead-el"><tr></tr></thead>
       <tbody id="doc-tbody"></tbody>
     </table></div>
   </div>`;
@@ -998,7 +998,23 @@ function getDocFiltered(){
 function renderDocTable(){
   const tbody=document.getElementById('doc-tbody');
   if(!tbody) return;
-  const docs=getDocFiltered();
+  let docs=getDocFiltered();
+  // Thead güncelle
+  const dokTheadEl=document.getElementById('dok-thead-el');
+  if(dokTheadEl){
+    const dokCols=[
+      {key:'kod',label:'Prosedür Kodu'},
+      {key:'tip',label:'Tip'},
+      {key:'ad',label:'Prosedür Adı'},
+      {key:'yayimTarihi',label:'Yayımlanma'},
+      {key:'revTarihi',label:'Revizyon Tarihi'},
+      {key:'revNo',label:'Rev No'},
+      {key:'durum',label:'Durum'},
+      {key:'__islemler',label:'İşlemler'},
+    ];
+    dokTheadEl.innerHTML=buildSortThead('dok', dokCols);
+  }
+  docs=applySortToItems('dok', docs);
   if(!docs.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><p>Döküman bulunamadı</p></div></td></tr>`;return;}
   tbody.innerHTML=docs.map(d=>`<tr>
     <td class="strong">${d.kod||'-'}</td>
@@ -1463,7 +1479,7 @@ function renderLakPak(type){
       <select class="tb-select" id="lak-sort" onchange="renderLakTable('${type}')"><option value="katilim">Katılım Tarihi</option><option value="sonuc">Sonuç Rapor</option><option value="sonraki">Sonraki Plan</option></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Kategori</th><th>${label} Adı</th><th>${label} Kodu</th>${type==='lak'?'<th>Düzenleyen Kuruluş</th>':''}<th>Katılım Tarihi</th><th>Sonuç Rapor</th><th>Sonraki Planlanan</th><th>EN Skoru</th><th>İlgili Standart</th><th>Durum</th><th>İşlemler</th></tr></thead>
+      <thead id="lak-thead-el"><tr></tr></thead>
       <tbody id="lak-tbody"></tbody>
     </table></div>
   </div>`;
@@ -1477,8 +1493,8 @@ function renderLakTable(type){
   const q=(document.getElementById('lak-search')?.value||'').toLowerCase();
   const kat=document.getElementById('lak-kat')?.value||'';
   const durum=document.getElementById('lak-durum')?.value||'';
-  const sort=document.getElementById('lak-sort')?.value||'katilim';
   const la=type==='lak';
+  const tableId=type; // 'lak' veya 'pak'
   items=items.filter(x=>{
     const name=la?x.lakAdi:x.pakAdi;
     const kod=la?x.lakKodu:x.pakKodu;
@@ -1487,17 +1503,28 @@ function renderLakTable(type){
     if(durum&&x.durum!==durum)return false;
     return true;
   });
-  items.sort((a,b)=>{
-    const fa=la?a.lakKatilimTarihi:a.pakKatilimTarihi;
-    const fb=la?b.lakKatilimTarihi:b.pakKatilimTarihi;
-    const sa=la?a.birSonrakiPlanliLak:a.birSonrakiPlanliPak;
-    const sb=la?b.birSonrakiPlanliLak:b.birSonrakiPlanliPak;
-    if(sort==='katilim') return (fb||'').localeCompare(fa||'');
-    if(sort==='sonuc') return (b.sonucRaporTarihi||'').localeCompare(a.sonucRaporTarihi||'');
-    if(sort==='sonraki') return (sa||'').localeCompare(sb||'');
-    return 0;
-  });
-  if(!items.length){tbody.innerHTML=`<tr><td colspan="11"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
+
+  // Thead güncelle
+  const theadEl=document.getElementById('lak-thead-el');
+  if(theadEl){
+    const lakCols=[
+      {key:'kategori',label:'Kategori'},
+      {key:la?'lakAdi':'pakAdi',label:la?'Lak Adı':'Pak Adı'},
+      {key:la?'lakKodu':'pakKodu',label:la?'Lak Kodu':'Pak Kodu'},
+      ...(la?[{key:'duzenleyenKuruluş',label:'Düzenleyen Kuruluş'}]:[]),
+      {key:la?'lakKatilimTarihi':'pakKatilimTarihi',label:'Katılım Tarihi'},
+      {key:'sonucRaporTarihi',label:'Sonuç Rapor'},
+      {key:la?'birSonrakiPlanliLak':'birSonrakiPlanliPak',label:'Sonraki Planlanan'},
+      {key:'enSkoru',label:'EN Skoru'},
+      {key:'ilgiliStandart',label:'İlgili Standart'},
+      {key:'durum',label:'Durum'},
+      {key:'__islemler',label:''}
+    ];
+    theadEl.innerHTML=buildSortThead(tableId, lakCols);
+  }
+  items=applySortToItems(tableId, items);
+
+  if(!items.length){tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
   const mod=type;
   tbody.innerHTML=items.map(x=>{
     const name=la?x.lakAdi:x.pakAdi;
@@ -1740,7 +1767,7 @@ function renderAraKontrol(){
       <select class="tb-select" id="ara-sort" onchange="renderAraTable()"><option value="tarih">Ara Kontrol Tarihi</option><option value="sonraki">Sonraki Planlanan</option><option value="envanter">Envanter No</option></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Kategori</th><th>Cihaz Adı</th><th>Marka</th><th>Model</th><th>Seri No</th><th>Envanter No</th><th>Ara Kontrol Tarihi</th><th>Sonraki Planlanan</th><th>Yapan</th><th>Kriter</th><th>Durum</th><th>Dosyalar</th><th>İşlemler</th></tr></thead>
+      <thead id="ara-thead-el"><tr></tr></thead>
       <tbody id="ara-tbody"></tbody>
     </table></div>
   </div>`;
@@ -1754,7 +1781,6 @@ function renderAraTable(){
   const q=(document.getElementById('ara-search')?.value||'').toLowerCase();
   const kat=document.getElementById('ara-kat')?.value||'';
   const durum=document.getElementById('ara-durum')?.value||'';
-  const sort=document.getElementById('ara-sort')?.value||'tarih';
   const todayStr=today();
   items=items.map(x=>{
     if(!x.manualDurum&&x.birSonrakiPlanliAra&&x.birSonrakiPlanliAra<todayStr&&x.durum!=='Tamamlandı') x.durum='Gecikti';
@@ -1767,12 +1793,27 @@ function renderAraTable(){
     if(durum&&x.durum!==durum)return false;
     return true;
   });
-  items.sort((a,b)=>{
-    if(sort==='tarih') return (b.araKontrolTarihi||'').localeCompare(a.araKontrolTarihi||'');
-    if(sort==='sonraki') return (a.birSonrakiPlanliAra||'').localeCompare(b.birSonrakiPlanliAra||'');
-    if(sort==='envanter') return (a.envanterNo||'').localeCompare(b.envanterNo||'');
-    return 0;
-  });
+  // Thead güncelle
+  const araTheadEl=document.getElementById('ara-thead-el');
+  if(araTheadEl){
+    const araCols=[
+      {key:'kategori',label:'Kategori'},
+      {key:'cihazAdi',label:'Cihaz Adı'},
+      {key:'marka',label:'Marka'},
+      {key:'model',label:'Model'},
+      {key:'seriNo',label:'Seri No'},
+      {key:'envanterNo',label:'Envanter No'},
+      {key:'araKontrolTarihi',label:'Ara Kontrol Tarihi'},
+      {key:'birSonrakiPlanliAra',label:'Sonraki Planlanan'},
+      {key:'yapan',label:'Yapan'},
+      {key:'kriter',label:'Kriter'},
+      {key:'durum',label:'Durum'},
+      {key:'__islemler',label:'Dosyalar'},
+      {key:'__islemler2',label:'İşlemler'},
+    ];
+    araTheadEl.innerHTML=buildSortThead('ara', araCols);
+  }
+  items=applySortToItems('ara', items);
   if(!items.length){tbody.innerHTML=`<tr><td colspan="13"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
   tbody.innerHTML=items.map(x=>{
     const isOverdue=x.durum==='Gecikti';
@@ -1932,7 +1973,7 @@ function renderReferans(){
   c.innerHTML=`<div class="page">
     <div class="section-header">
       <div class="section-title">Referans Cihazlar</div>
-      ${canEdit('referans')?`<button class="btn btn-primary" onclick="openRefModal(null)">${icon('plus',14)} Yeni Cihaz Ekle</button>`:`<button class="btn btn-ghost" disabled data-tip="Yetkiniz yok">${icon('plus',14)} Ekle</button>`}
+      ${canEdit('referans')?`<div style="display:flex;gap:8px"><button class="btn btn-ghost" onclick="openImportRefExcel()">${icon('upload',14)} Excel ile İçe Aktar</button><button class="btn btn-primary" onclick="openRefModal(null)">${icon('plus',14)} Yeni Cihaz Ekle</button></div>`:`<button class="btn btn-ghost" disabled>${icon('plus',14)} Ekle</button>`}
     </div>
     <div class="toolbar">
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ref-search" type="text" placeholder="Cihaz, marka, model, seri, envanter, kalibrasyon no..." oninput="renderRefTable()"></div>
@@ -1940,7 +1981,7 @@ function renderReferans(){
       <select class="tb-select" id="ref-sort" onchange="renderRefTable()"><option value="kalibrasyon">Kalibrasyon Tarihi</option><option value="sonraki">Sonraki Kalibrasyon</option><option value="envanter">Envanter No</option></select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Cihaz Adı</th><th>Marka</th><th>Model</th><th>Seri No</th><th>Envanter No</th><th>Kalibrasyon No</th><th>Kalibrasyon Tarihi</th><th>Sonraki Kalibrasyon</th><th>Değerlendirme Kriteri</th><th>Durum</th><th>İşlemler</th></tr></thead>
+      <thead id="ref-thead"><tr></tr></thead>
       <tbody id="ref-tbody"></tbody>
     </table></div>
   </div>`;
@@ -1957,28 +1998,103 @@ function calcRefDurum(x){
   return 'Güncel';
 }
 
+// Referans tablo sort state
+
+// ==================== GENEL TABLO SORT ====================
+const _tableSort = {};
+function sortTableBy(tableId, col){
+  if(!_tableSort[tableId]) _tableSort[tableId] = {col:null, dir:1};
+  const s = _tableSort[tableId];
+  if(s.col === col) s.dir *= -1;
+  else { s.col = col; s.dir = 1; }
+  // Hangi tabloyu yenileyeceğiz?
+  if(tableId==='lak') renderLakTable('lak');
+  else if(tableId==='pak') renderLakTable('pak');
+  else if(tableId==='ara') renderAraKontrolTable();
+  else if(tableId==='dok') renderDocTable();
+  else if(tableId==='dk') renderDKTable();
+}
+
+function buildSortThead(tableId, cols){
+  const s = _tableSort[tableId] || {col:null, dir:1};
+  return '<tr>' + cols.map(c => {
+    if(c.key === '__islemler') return '<th>İşlemler</th>';
+    const active = s.col === c.key;
+    const arrow = active ? (s.dir===1 ? ' ▲' : ' ▼') : ' ⇅';
+    return `<th onclick="sortTableBy('${tableId}','${c.key}')" style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent)':''}">${c.label}<span style="font-size:10px;opacity:${active?1:0.35}">${arrow}</span></th>`;
+  }).join('') + '</tr>';
+}
+
+function applySortToItems(tableId, items){
+  const s = _tableSort[tableId];
+  if(!s || !s.col) return items;
+  const col = s.col, dir = s.dir;
+  return [...items].sort((a,b)=>{
+    const av = String(a[col]||'').toLowerCase();
+    const bv = String(b[col]||'').toLowerCase();
+    return av < bv ? -dir : av > bv ? dir : 0;
+  });
+}
+
+let _refSort = {col: null, dir: 1};
+
+function sortRefBy(col){
+  if(_refSort.col === col) _refSort.dir *= -1;
+  else { _refSort.col = col; _refSort.dir = 1; }
+  renderRefTable();
+}
+
 function renderRefTable(){
   const tbody=document.getElementById('ref-tbody');if(!tbody)return;
   let items=DB.get('referans')||[];
   const q=(document.getElementById('ref-search')?.value||'').toLowerCase();
   const durum=document.getElementById('ref-durum')?.value||'';
-  const sort=document.getElementById('ref-sort')?.value||'kalibrasyon';
   items=items.map(x=>({...x,_durum:calcRefDurum(x)}));
   items=items.filter(x=>{
-    const fields=[x.cihazAdi,x.marka,x.model,x.seriNo,x.envanterNo,x.kalibrasyonNo];
+    const fields=[x.kategori,x.cihazAdi,x.marka,x.model,x.seriNo,x.envanterNo,x.kalibrasyonNo];
     if(q&&!fields.some(f=>f?.toLowerCase().includes(q)))return false;
     if(durum&&x._durum!==durum)return false;
     return true;
   });
-  items.sort((a,b)=>{
-    if(sort==='kalibrasyon') return (b.kalibrasyonTarihi||'').localeCompare(a.kalibrasyonTarihi||'');
-    if(sort==='sonraki') return (a.birSonrakiKalibrasyon||'').localeCompare(b.birSonrakiKalibrasyon||'');
-    if(sort==='envanter') return (a.envanterNo||'').localeCompare(b.envanterNo||'');
-    return 0;
-  });
-  if(!items.length){tbody.innerHTML=`<tr><td colspan="11"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
+
+  // Sıralama
+  const cols = [
+    {key:'kategori',        label:'Kategori'},
+    {key:'cihazAdi',        label:'Cihaz Adı'},
+    {key:'marka',           label:'Marka'},
+    {key:'model',           label:'Model'},
+    {key:'seriNo',          label:'Seri No'},
+    {key:'envanterNo',      label:'Envanter No'},
+    {key:'kalibrasyonNo',   label:'Kalibrasyon No'},
+    {key:'kalibrasyonTarihi',      label:'Kalibrasyon Tarihi'},
+    {key:'birSonrakiKalibrasyon',  label:'Sonraki Kalibrasyon'},
+    {key:'degerlendirmeKriteri',   label:'Değerlendirme Kriteri'},
+    {key:'_durum',          label:'Durum'},
+  ];
+
+  // Thead güncelle
+  const thead = document.getElementById('ref-thead');
+  if(thead){
+    thead.innerHTML = '<tr>' + cols.map(c=>{
+      const active = _refSort.col === c.key;
+      const arrow = active ? (_refSort.dir===1 ? ' ▲' : ' ▼') : ' ⇅';
+      return `<th onclick="sortRefBy('${c.key}')" style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent)':''}">${c.label}<span style="font-size:10px;opacity:${active?1:0.35}">${arrow}</span></th>`;
+    }).join('') + '<th>İşlemler</th></tr>';
+  }
+
+  if(_refSort.col){
+    const col = _refSort.col;
+    const dir = _refSort.dir;
+    items.sort((a,b)=>{
+      const av = String(a[col]||'').toLowerCase();
+      const bv = String(b[col]||'').toLowerCase();
+      return av < bv ? -dir : av > bv ? dir : 0;
+    });
+  }
+  if(!items.length){tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
   const durumBadge={'Güncel':'badge-green','Kalibrasyon Yaklaştı':'badge-amber','Geçti':'badge-red'};
   tbody.innerHTML=items.map(x=>`<tr>
+    <td>${x.kategori||'-'}</td>
     <td class="strong">${x.cihazAdi||'-'}</td>
     <td>${x.marka||'-'}</td><td>${x.model||'-'}</td><td>${x.seriNo||'-'}</td><td>${x.envanterNo||'-'}</td>
     <td>${x.kalibrasyonNo||'-'}</td>
@@ -2094,6 +2210,128 @@ function openRefModal(id){
   }
   openModal('ref-modal');
 }
+
+// ==================== EXCEL IMPORT - REFERANS CİHAZLAR ====================
+function openImportRefExcel(){
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';
+  ov.style.zIndex=3000;
+  ov.innerHTML=`
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <div class="modal-title">Excel ile Toplu Referans Cihaz İçe Aktar</div>
+        <div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div>
+      </div>
+      <div class="modal-body" style="padding:20px">
+        <div style="background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
+          <b style="color:var(--accent)">Excel sütun sırası:</b><br>
+          A: Cihaz Adı &nbsp; B: Marka &nbsp; C: Model &nbsp; D: Seri No &nbsp; E: Envanter No &nbsp; F: Kalibrasyon No &nbsp; G: Kalibrasyon Tarihi &nbsp; H: Sonraki Kalibrasyon<br>
+          <span style="color:var(--text3);font-size:12px">Tarih formatı: GG.AA.YYYY &nbsp;|&nbsp; 1. satır başlık olabilir, atlanır</span>
+        </div>
+        <label for="import-ref-file" style="display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed var(--border);border-radius:10px;padding:32px;cursor:pointer;gap:8px">
+          <div style="font-size:32px">📊</div>
+          <span style="font-size:14px;color:var(--text2)">Excel dosyası seç (.xlsx / .xls)</span>
+          <span style="font-size:12px;color:var(--text3)" id="import-ref-fname">veya buraya sürükle</span>
+          <input type="file" accept=".xlsx,.xls" style="position:absolute;opacity:0;width:0;height:0" id="import-ref-file" onchange="previewImportRefFile(this)">
+        </label>
+        <div id="import-ref-preview" style="margin-top:12px;font-size:13px;color:var(--text3)"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">İptal</button>
+        <button class="btn btn-primary" id="import-ref-btn" onclick="doImportRefExcel()" disabled>İçe Aktar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+}
+
+function previewImportRefFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  document.getElementById('import-ref-fname').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    // Başlık satırını atla - A sütunu sayısal değilse başlıktır
+    const dataRows = rows.filter(function(r){ return r[0] && String(r[0]).trim(); });
+    document.getElementById('import-ref-preview').innerHTML =
+      '<span style="color:var(--accent)">' + dataRows.length + ' cihaz</span> bulundu';
+    document.getElementById('import-ref-btn').disabled = dataRows.length === 0;
+    window._importRefRows = dataRows;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcelDate(val){
+  if(!val) return '';
+  // JS Date objesi (cellDates:true ile geliyor)
+  if(val instanceof Date){
+    const gun = String(val.getDate()).padStart(2,'0');
+    const ay  = String(val.getMonth()+1).padStart(2,'0');
+    return val.getFullYear()+'-'+ay+'-'+gun;
+  }
+  // Excel serial number
+  if(typeof val === 'number'){
+    const d = new Date(Math.round((val - 25569)*86400*1000));
+    const gun = String(d.getUTCDate()).padStart(2,'0');
+    const ay  = String(d.getUTCMonth()+1).padStart(2,'0');
+    return d.getUTCFullYear()+'-'+ay+'-'+gun;
+  }
+  const s = String(val).trim();
+  // GG.AA.YYYY
+  const t = s.split('.');
+  if(t.length === 3){
+    const gun = t[0].padStart(2,'0');
+    const ay  = t[1].padStart(2,'0');
+    const yil = t[2].length === 2 ? '20'+t[2] : t[2];
+    return yil+'-'+ay+'-'+gun;
+  }
+  // YYYY-MM-DD
+  if(s.includes('-') && s.length >= 8) return s;
+  return '';
+}
+
+function doImportRefExcel(){
+  const rows = window._importRefRows;
+  if(!rows||!rows.length){toast('Veri bulunamadı','error');return;}
+  const items = DB.get('referans') || [];
+  const existing = {};
+  items.forEach(function(d){ if(d.seriNo) existing[d.seriNo]=true; });
+  let added=0, skipped=0;
+
+  rows.forEach(function(r){
+    const kategori        = String(r[0]||'').trim();
+    const cihazAdi        = String(r[1]||'').trim();
+    const marka           = String(r[2]||'').trim();
+    const model           = String(r[3]||'').trim();
+    const seriNo          = String(r[4]||'').trim();
+    const envanterNo      = String(r[5]||'').trim();
+    const kalibrasyonNo   = String(r[6]||'').trim();
+    const kalibrasyonTar  = parseExcelDate(r[7]);
+    const sonrakiKal      = parseExcelDate(r[8]);
+
+    if(!cihazAdi) return;
+    if(seriNo && existing[seriNo]){ skipped++; return; }
+
+    items.push({
+      id: 'ref_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      kategori, cihazAdi, marka, model, seriNo, envanterNo,
+      kalibrasyonNo, kalibrasyonTarihi: kalibrasyonTar,
+      birSonrakiKalibrasyon: sonrakiKal,
+      durum: 'Aktif', notlar: '', files: []
+    });
+    if(seriNo) existing[seriNo] = true;
+    added++;
+  });
+
+  DB.set('referans', items);
+  document.querySelector('.modal-overlay[style*="3000"]').remove();
+  toast(added+' cihaz eklendi'+(skipped?' ('+skipped+' atlandı)':''), 'success');
+  renderReferans();
+}
+
 function saveRef(){
   const cihaz=document.getElementById('r-cihaz').value.trim();
   if(!cihaz){toast('Cihaz adı zorunlu','error');return;}
@@ -3078,7 +3316,7 @@ function renderDisKaynakListesi(){
       </select>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Standart No</th><th>Standart Adı</th><th>Yayın Tarihi</th><th>Durum</th><th>Notlar</th><th>Dosyalar</th><th>İşlemler</th></tr></thead>
+      <thead id="dk-thead-el"><tr></tr></thead>
       <tbody id="dk-tbody"></tbody>
     </table></div>
   </div>`;
@@ -3107,7 +3345,21 @@ function getDKFiltered(){
 
 function renderDKTable(){
   const tbody=document.getElementById('dk-tbody');if(!tbody)return;
-  const docs=getDKFiltered();
+  let docs=getDKFiltered();
+  const dkTheadEl=document.getElementById('dk-thead-el');
+  if(dkTheadEl){
+    const dkCols=[
+      {key:'no',label:'Standart No'},
+      {key:'ad',label:'Standart Adı'},
+      {key:'yayimTarihi',label:'Yayın Tarihi'},
+      {key:'durum',label:'Durum'},
+      {key:'not',label:'Notlar'},
+      {key:'__islemler',label:'Dosyalar'},
+      {key:'__islemler2',label:'İşlemler'},
+    ];
+    dkTheadEl.innerHTML=buildSortThead('dk', dkCols);
+  }
+  docs=applySortToItems('dk', docs);
   if(!docs.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><p>Döküman bulunamadı</p></div></td></tr>`;return;}
   tbody.innerHTML=docs.map(d=>`<tr>
     <td class="strong">${d.no||'-'}</td>
