@@ -2256,6 +2256,7 @@ function openPersonelModal(id){
     document.getElementById('p-rol').value='Goruntuleyebilir';
     document.getElementById('p-active').value='true';
     _currentPerms=JSON.parse(JSON.stringify(DEFAULT_PERMS['Goruntuleyebilir']));
+    _currentPermsRol='Goruntuleyebilir';
   }
   // Reset tabs
   document.querySelectorAll('#p-modal .tab').forEach((t,i)=>t.classList.toggle('active',i===0));
@@ -2265,7 +2266,8 @@ function openPersonelModal(id){
 
 function renderPermTable(){
   const rol=document.getElementById('p-rol')?.value||'Goruntuleyebilir';
-  const isLocked=rol==='Yonetici'||rol==='Goruntuleyebilir';
+  const isYonetici=rol==='Yonetici';
+  // Rol degisince default perms yukle
   if(rol!==(_currentPermsRol)) {
     _currentPerms=JSON.parse(JSON.stringify(DEFAULT_PERMS[rol]||DEFAULT_PERMS['Goruntuleyebilir']));
     _currentPermsRol=rol;
@@ -2273,8 +2275,8 @@ function renderPermTable(){
   const tbody=document.getElementById('perm-tbody');if(!tbody)return;
   tbody.innerHTML=MODULES.map(m=>`<tr>
     <td>${MODUL_LABELS[m]||m}</td>
-    <td><input type="checkbox" ${_currentPerms[m]?.v?'checked':''} onchange="setPermVal('${m}','v',this.checked)" ${isLocked?'disabled':''}></td>
-    <td><input type="checkbox" ${_currentPerms[m]?.e?'checked':''} onchange="setPermVal('${m}','e',this.checked)" ${isLocked||rol==='Yonetici'?'disabled':''}></td>
+    <td><input type="checkbox" ${_currentPerms[m]?.v?'checked':''} onchange="setPermVal('${m}','v',this.checked)" ${isYonetici?'disabled':''}></td>
+    <td><input type="checkbox" ${_currentPerms[m]?.e?'checked':''} onchange="setPermVal('${m}','e',this.checked)" ${isYonetici?'disabled':''}></td>
   </tr>`).join('');
 }
 let _currentPermsRol='';
@@ -2296,7 +2298,7 @@ function savePersonel(){
   if(!ad||!soyad||!username){toast('Ad, soyad ve kullanıcı adı zorunlu','error');return;}
   const persons=DB.get('personeller')||[];
   const rol=document.getElementById('p-rol').value;
-  const isCustom=rol==='Duzenleyebilir';
+  const isCustom=rol!=='Yonetici'&&rol!=='Goruntuleyebilir';
   const data={ad,soyad,gorev:document.getElementById('p-gorev').value,egitim:document.getElementById('p-egitim').value,alanlar:document.getElementById('p-alanlar').value.split(',').map(x=>x.trim()).filter(Boolean),username,password:document.getElementById('p-password').value,rol,active:document.getElementById('p-active').value==='true',perms:isCustom?_currentPerms:null};
   if(_editPersonelId){const i=persons.findIndex(p=>p.id===_editPersonelId);if(i>=0)persons[i]={...persons[i],...data};}
   else persons.push({id:uid(),...data,files:[]});
