@@ -357,8 +357,7 @@ td.strong{color:var(--text);font-weight:500}
     <div class="page-title" id="topbar-title">Ana Sayfa</div>
     <div class="topbar-search">
       <svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="global-search" placeholder="Ara...">
-    </div>
+      </div>
     <div class="topbar-right">
       <div id="topbar-firm" style="font-size:12px;color:var(--text3);font-family:'Syne',sans-serif;font-weight:600" id="topbar-firm-label"></div>
     </div>
@@ -500,9 +499,13 @@ DB.def('activityLog',[]);
 DB.def('referansHistory',[]);
 DB.def('uygunsuzluklar',[]);
 DB.def('uygunsuzlukHistory',[]);
+DB.def('tedarikci',[]);
+DB.def('satinAlmaTalep',[]);
+DB.def('tedDegerlendirme',[]);
+DB.def('refCihazDeg',[]);
 
 // ==================== RBAC ====================
-const MODULES = ['dokumanlar','disKaynak','lak','pak','araKontrol','referans','uygunsuzluklar','personeller','ayarlar'];
+const MODULES = ['dokumanlar','disKaynak','lak','pak','araKontrol','referans','satinalma','uygunsuzluklar','personeller','ayarlar'];
 const DEFAULT_PERMS = {
   Yonetici:{dokumanlar:{v:1,e:1},disKaynak:{v:1,e:1},lak:{v:1,e:1},pak:{v:1,e:1},araKontrol:{v:1,e:1},referans:{v:1,e:1},uygunsuzluklar:{v:1,e:1},personeller:{v:1,e:1},ayarlar:{v:1,e:1}},
   Duzenleyebilir:{dokumanlar:{v:1,e:1},disKaynak:{v:1,e:1},lak:{v:1,e:1},pak:{v:1,e:1},araKontrol:{v:1,e:1},referans:{v:1,e:1},uygunsuzluklar:{v:1,e:1},personeller:{v:1,e:0},ayarlar:{v:1,e:0}},
@@ -545,6 +548,11 @@ const NAV_ITEMS = [
     {id:'referans-listesi',label:'Referans Listesi',icon:'layers',page:'referans',mod:'referans'},
     {id:'referans-gecmisi',label:'Referans Geçmişi',icon:'clock',page:'referans-gecmisi',mod:'referans'}
   ]},
+  {id:'satinalma',label:'Satın Alma',icon:'shopping-cart',mod:'satinalma',children:[
+    {id:'satin-alma-talep',label:'Kalibrasyon Satın Alma',icon:'clipboard',page:'satin-alma-talep',mod:'satinalma'},
+    {id:'tedarikci-degerlendirme',label:'Tedarikçi Değerlendirme',icon:'star',page:'tedarikci-degerlendirme',mod:'satinalma'},
+    {id:'tedarikci-listesi',label:'Onaylı Tedarikçiler',icon:'check-circle',page:'tedarikci-listesi',mod:'satinalma'}
+  ]},
   {id:'uygunsuzluklar',label:'Uygunsuzluklar',icon:'alert-triangle',mod:'uygunsuzluklar',children:[
     {id:'uygunsuzluk-listesi',label:'Uygunsuzluk Listesi',icon:'layers',page:'uygunsuzluk-listesi',mod:'uygunsuzluklar'},
     {id:'uygunsuzluk-gecmisi',label:'Uygunsuzluk Geçmişi',icon:'clock',page:'uygunsuzluk-gecmisi',mod:'uygunsuzluklar'}
@@ -583,7 +591,8 @@ const ICONS = {
   image:`<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>`,
   lock:`<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
   'x-circle':`<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>`,
-  'alert-triangle':`<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17">`
+  'alert-triangle':`<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17">`,
+  'shopping-cart':`<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>`
 };
 
 function icon(name,size=14){
@@ -639,7 +648,7 @@ function navigate(page,params={}){
     'lak-listesi':'Lak/Yt','lak-gecmisi':'Lak Geçmişi','pak-listesi':'Pak','pak-gecmisi':'Pak Geçmişi',
     'ara-kontrol':'Ara Kontrol','referans':'Referans Cihazlar','referans-gecmisi':'Referans Geçmişi',
     'uygunsuzluk-listesi':'Uygunsuzluklar','uygunsuzluk-gecmisi':'Uygunsuzluk Geçmişi',
-    'personeller':'Personeller','ayarlar':'Ayarlar'
+    'satin-alma-talep':'Kalibrasyon Satın Alma','tedarikci-degerlendirme':'Tedarikçi Değerlendirme','tedarikci-listesi':'Onaylı Tedarikçiler','personeller':'Personeller','ayarlar':'Ayarlar'
   };
   document.getElementById('topbar-title').textContent=titles[page]||'';
   const content=document.getElementById('content');
@@ -650,7 +659,7 @@ function navigate(page,params={}){
     'pak-listesi':()=>renderLakPak('pak'),'pak-gecmisi':()=>renderLakPakGecmis('pak'),
     'ara-kontrol':renderAraKontrol,'referans':renderReferans,'referans-gecmisi':renderReferansGecmisi,
     'uygunsuzluk-listesi':renderUygunsuzluklar,'uygunsuzluk-gecmisi':renderUygunsuzlukGecmisi,
-    'personeller':renderPersoneller,'ayarlar':renderAyarlar
+    'satin-alma-talep':renderSatinAlmaTalep,'tedarikci-degerlendirme':renderTedDegerlendirme,'tedarikci-listesi':renderTedarikci,'personeller':renderPersoneller,'ayarlar':renderAyarlar
   };
   if(pages[page]) pages[page]();
   else content.innerHTML='<div class="empty-state"><p>Sayfa bulunamadı</p></div>';
@@ -698,9 +707,9 @@ function truncate(s,n=30){return s&&s.length>n?s.substr(0,n)+'…':s||''}
 function enColor(v){
   if(v===null||v===''||v===undefined) return 'var(--text3)';
   const n=Number(v);
-  if(n<0.5) return 'var(--danger)';
-  if(n<0.75) return 'var(--warn)';
-  return 'var(--success)';
+  if(n<0.33) return 'var(--success)';
+  if(n<0.66) return 'var(--warn)';
+  return 'var(--danger)';
 }
 function enBar(v){
   if(v===null||v===''||v===undefined) return '';
@@ -852,7 +861,7 @@ function renderDashboard(){
   });
 
   const allMods=['lak','pak','araKontrol','referans'];
-  const upcoming6=upcoming.slice(0,6);
+  const upcoming6=upcoming;
 
   const c=document.getElementById('content');
   c.innerHTML=`<div class="page">
@@ -865,10 +874,6 @@ function renderDashboard(){
     </div>
     <div class="dash-grid">
       <div>
-        <div class="card" style="margin-bottom:18px">
-          <div class="section-header"><div class="section-title" style="font-size:14px">Yapılan İşlem Faaliyeti (Son 7 Gün)</div></div>
-          <div class="chart-container"><canvas id="actChart"></canvas></div>
-        </div>
         <div class="card">
           <div class="section-header">
             <div class="section-title" style="font-size:14px">Yaklaşan Faaliyetler (${threshold} gün içinde)</div>
@@ -887,17 +892,7 @@ function renderDashboard(){
         </div>
       </div>
       <div>
-        <div class="card" style="margin-bottom:18px">
-          <div class="section-title" style="font-size:14px;margin-bottom:14px">Gün Özeti</div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            ${[['Toplam Döküman',docs.length,'file-text','--primary'],['Toplam Lak',lak.length,'activity','--accent'],['Toplam Pak',pak.length,'users','--primary2'],['Ara Kontrol',ara.length,'shield-check','--warn'],['Referans Cihaz',ref.length,'cpu','--success']].map(([l,v,ic,c])=>`
-            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm)">
-              <div style="width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;color:var(${c})">${icon(ic,16)}</div>
-              <span style="flex:1;font-size:13px;color:var(--text2)">${l}</span>
-              <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px">${v}</span>
-            </div>`).join('')}
-          </div>
-        </div>
+
         <div class="card">
           <div class="section-title" style="font-size:14px;margin-bottom:14px">Son Faaliyetler</div>
           <div>
@@ -912,45 +907,20 @@ function renderDashboard(){
     </div>
   </div>`;
 
-  // Chart
-  setTimeout(()=>{
-    const ctx=document.getElementById('actChart');
-    if(!ctx) return;
-    new Chart(ctx,{type:'bar',data:{
-      labels:last7.map(x=>x.label),
-      datasets:[{data:last7.map(x=>x.count),backgroundColor:'rgba(79,107,240,.5)',borderColor:'var(--primary)',borderWidth:2,borderRadius:6}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(99,120,200,.08)'},ticks:{color:'var(--text3)'}},y:{grid:{color:'rgba(99,120,200,.08)'},ticks:{color:'var(--text3)',stepSize:1},beginAtZero:true}}}});
-  },100);
-
-  STATE._upcoming_all=upcoming;
-}
-
-function upcomingItem(u){
-  const isOverdue=u.diff<0;
-  const color=isOverdue?'var(--danger)':u.diff<=7?'var(--warn)':'var(--accent)';
-  const label=isOverdue?`${Math.abs(u.diff)} gün geçti`:`${u.diff} gün kaldı`;
-  const typeColors={Lak:'var(--primary)',Pak:'var(--primary2)',Ara:'var(--accent)',Ref:'var(--warn)'};
-  return `<div class="upcoming-item">
-    <div class="upcoming-dot" style="background:${typeColors[u.type]||'var(--text3)'}"></div>
-    <div class="upcoming-info">
-      <div class="upcoming-name">${u.name}</div>
-      <div class="upcoming-date">${formatDate(u.date)} · ${u.type}</div>
-    </div>
-    <span class="upcoming-days" style="background:${isOverdue?'rgba(240,82,82,.15)':'rgba(0,212,170,.1)'};color:${color}">${label}</span>
-  </div>`;
-}
-
-function filterUpcoming(type){
-  document.querySelectorAll('#upcomingTabs .tab').forEach((t,i)=>{
-    const types=['hepsi','Lak','Pak','Ara','Ref'];
-    t.classList.toggle('active',types[i]===type);
-  });
-  const all=STATE._upcoming_all||[];
-  const filtered=type==='hepsi'?all:all.filter(x=>x.type===type);
-  document.getElementById('upcoming-list').innerHTML=filtered.slice(0,6).map(u=>upcomingItem(u)).join('')||'<div class="empty-state" style="padding:20px"><p>Faaliyet yok</p></div>';
+  STATE._upcoming_all = upcoming;
 }
 
 // ==================== DOKUMAN LİSTESİ ====================
+function filterUpcoming(type){
+  const all=STATE._upcoming_all||[];
+  const filtered=type==='hepsi'?all:all.filter(x=>x.type===type);
+  const el=document.getElementById('upcoming-list');
+  if(!el) return;
+  el.innerHTML=filtered.length===0?'<div class="empty-state" style="padding:24px"><p>Yaklaşan faaliyet yok</p></div>':filtered.map(u=>upcomingItem(u)).join('');
+  document.querySelectorAll('#upcomingTabs .tab').forEach(t=>t.classList.remove('active'));
+  event?.target?.classList?.add('active');
+}
+
 function renderDokumanListesi(){
   if(!canView('dokumanlar')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
   const c=document.getElementById('content');
@@ -1460,7 +1430,7 @@ async function geriAl(id){
 }
 
 // ==================== LAK / PAK ====================
-const KATEGORILER=['boyut','basınç','kuvvet','tork','sıcaklık','elektrik','frekans','yüksek gerilim','lüks','diğer'];
+const KATEGORILER=['Boyut','Basınç','Kuvvet','Tork','Sıcaklık','Elektrik','Frekans','Yüksek Gerilim','Lüks','Diğer'];
 
 function renderLakPak(type){
   const mod=type;
@@ -1476,81 +1446,161 @@ function renderLakPak(type){
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="lak-search" type="text" placeholder="${label} adı veya kodu ara..." oninput="renderLakTable('${type}')"></div>
       <select class="tb-select" id="lak-kat" onchange="renderLakTable('${type}')"><option value="">Tüm Kategoriler</option>${KATEGORILER.map(k=>`<option>${k}</option>`).join('')}</select>
       <select class="tb-select" id="lak-durum" onchange="renderLakTable('${type}')"><option value="">Tüm Durumlar</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option></select>
+      <select class="tb-select" id="lak-sure" onchange="renderLakTable('${type}')"><option value="">Tüm Süreler</option><option value="30">30 Gün İçinde</option><option value="60">60 Gün İçinde</option><option value="90">90 Gün İçinde</option></select>
       <select class="tb-select" id="lak-sort" onchange="renderLakTable('${type}')"><option value="katilim">Katılım Tarihi</option><option value="sonuc">Sonuç Rapor</option><option value="sonraki">Sonraki Plan</option></select>
     </div>
-    <div class="table-wrap"><table>
-      <thead id="lak-thead-el"><tr></tr></thead>
-      <tbody id="lak-tbody"></tbody>
-    </table></div>
+    <div id="lak-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:8px"></div>
   </div>`;
   addLakModal(type);
   renderLakTable(type);
 }
 
 function renderLakTable(type){
-  const tbody=document.getElementById('lak-tbody');if(!tbody)return;
+  const container=document.getElementById('lak-cards');if(!container)return;
   let items=DB.get(type)||[];
   const q=(document.getElementById('lak-search')?.value||'').toLowerCase();
   const kat=document.getElementById('lak-kat')?.value||'';
   const durum=document.getElementById('lak-durum')?.value||'';
   const la=type==='lak';
-  const tableId=type; // 'lak' veya 'pak'
   items=items.filter(x=>{
     const name=la?x.lakAdi:x.pakAdi;
     const kod=la?x.lakKodu:x.pakKodu;
     if(q&&!(name?.toLowerCase().includes(q)||kod?.toLowerCase().includes(q)))return false;
     if(kat&&x.kategori!==kat)return false;
     if(durum&&x.durum!==durum)return false;
+    const sure=document.getElementById('lak-sure')?.value||'';
+    if(sure){
+      const sp=la?x.birSonrakiPlanliLak:x.birSonrakiPlanliPak;
+      const d=daysDiff(sp);
+      if(d===null||d<0||d>parseInt(sure)) return false;
+    }
     return true;
   });
-
-  // Thead güncelle
-  const theadEl=document.getElementById('lak-thead-el');
-  if(theadEl){
-    const lakCols=[
-      {key:'kategori',label:'Kategori'},
-      {key:la?'lakAdi':'pakAdi',label:la?'Lak Adı':'Pak Adı'},
-      {key:la?'lakKodu':'pakKodu',label:la?'Lak Kodu':'Pak Kodu'},
-      ...(la?[{key:'duzenleyenKuruluş',label:'Düzenleyen Kuruluş'}]:[]),
-      {key:la?'lakKatilimTarihi':'pakKatilimTarihi',label:'Katılım Tarihi'},
-      {key:'sonucRaporTarihi',label:'Sonuç Rapor'},
-      {key:la?'birSonrakiPlanliLak':'birSonrakiPlanliPak',label:'Sonraki Planlanan'},
-      {key:'enSkoru',label:'EN Skoru'},
-      {key:'ilgiliStandart',label:'İlgili Standart'},
-      {key:'durum',label:'Durum'},
-      {key:'__islemler',label:''}
-    ];
-    theadEl.innerHTML=buildSortThead(tableId, lakCols);
-  }
-  items=applySortToItems(tableId, items);
-
-  if(!items.length){tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Kayıt bulunamadı</p></div>';return;}
   const mod=type;
-  tbody.innerHTML=items.map(x=>{
+  container.innerHTML=items.map(x=>{
     const name=la?x.lakAdi:x.pakAdi;
     const kod=la?x.lakKodu:x.pakKodu;
-    const kat2=la?x.lakKatilimTarihi:x.pakKatilimTarihi;
+    const katTar=la?x.lakKatilimTarihi:x.pakKatilimTarihi;
     const sp=la?x.birSonrakiPlanliLak:x.birSonrakiPlanliPak;
-    return `<tr>
-    <td>${katBadge(x.kategori)}</td>
-    <td class="strong">${name||'-'}</td>
-    <td>${kod||'-'}</td>
-    ${la?`<td>${x.duzenleyenKuruluş||'-'}</td>`:''}
-    <td>${formatDate(kat2)}</td>
-    <td>${formatDate(x.sonucRaporTarihi)}</td>
-    <td>${formatDate(sp)}</td>
-    <td>${enBar(x.enSkoru)}</td>
-    <td style="font-size:11.5px">${x.ilgiliStandart||'-'}</td>
-    <td>${canEdit(mod)?`<select class="tb-select" style="padding:3px 6px;font-size:11.5px" onchange="updateLakDurum('${x.id}','${type}',this.value)"><option ${x.durum==='Sonuç Bekleniyor'?'selected':''}>Sonuç Bekleniyor</option><option ${x.durum==='Tamamlandı'?'selected':''}>Tamamlandı</option></select>`:`<span class="badge ${x.durum==='Tamamlandı'?'badge-green':'badge-amber'}">${x.durum||'-'}</span>`}</td>
-    <td><div class="action-btns">
-      ${canEdit(mod)?`<button class="icon-btn" title="PDF Yükle" onclick="uploadLakFile('${x.id}','${type}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">PDF</span></button>`:''}
-      ${x.pdfFile?`<button class="icon-btn" title="PDF Önizle" onclick="previewLakFileById('${x.id}','${type}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('eye',12)}</button>`:''}
-      ${canEdit(mod)?`<button class="icon-btn" title="Word/Excel Yükle" onclick="uploadLakFile('${x.id}','${type}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">W/E</span></button>`:''}
-      ${x.officeFile?`<button class="icon-btn" title="Word/Excel Önizle/İndir" onclick="previewLakFileById('${x.id}','${type}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('eye',12)}</button>`:''}
-      ${canEdit(mod)?`<button class="icon-btn" title="Düzenle" onclick="openLakModal('${x.id}','${type}')">${icon('edit',13)}</button>`:''}
-      ${canEdit(mod)?`<button class="icon-btn danger" title="Sil" onclick="deleteLak('${x.id}','${type}')">${icon('trash',13)}</button>`:''}
-    </div></td>
-  </tr>`;}).join('');
+    const files=x.files||[];
+    const enN=Number(x.enSkoru);
+    const enRenk=isNaN(enN)?'var(--text3)':enN<0.33?'var(--success)':enN<0.66?'var(--warn)':'var(--danger)';
+    const durumBadge={'Sonuç Bekleniyor':'badge-amber','Tamamlandı':'badge-green'};
+    const d=daysDiff(sp);
+    const spBadge=d===null?'':`<span class="badge ${d<0?'badge-red':d<=30?'badge-amber':'badge-blue'}" style="font-size:10px">${d<0?Math.abs(d)+' gün geçti':d+' gün kaldı'}</span>`;
+    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:8px;background:rgba(0,212,170,.15);display:flex;align-items:center;justify-content:center;font-size:18px">🔬</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${name||'-'}</div>
+            <div style="font-size:11px;color:var(--text3)">${kod||''}</div>
+          </div>
+        </div>
+        ${katBadge(x.kategori)}
+      </div>
+      <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <div><span style="color:var(--text3)">Katılım: </span>${formatDate(katTar)||'-'}</div>
+        <div><span style="color:var(--text3)">Sonuç Rapor: </span>${formatDate(x.sonucRaporTarihi)||'-'}</div>
+        <div><span style="color:var(--text3)">Sonraki: </span>${formatDate(sp)||'-'} ${spBadge}</div>
+        <div><span style="color:var(--text3)">Durum: </span><span class="badge ${durumBadge[x.durum]||'badge-gray'}" style="font-size:10px">${x.durum||'-'}</span></div>
+        ${la&&x.duzenleyenKuruluş?`<div style="grid-column:1/-1"><span style="color:var(--text3)">Kuruluş: </span>${x.duzenleyenKuruluş}</div>`:''}
+        ${x.ilgiliStandart?`<div><span style="color:var(--text3)">Standart: </span>${x.ilgiliStandart}</div>`:''}
+        ${x.katilimciSayisi?`<div><span style="color:var(--text3)">Katılımcı: </span>${x.katilimciSayisi}</div>`:''}
+        ${x.labKodu?`<div><span style="color:var(--text3)">Lab Kodu: </span>${x.labKodu}</div>`:''}
+        ${x.olcumAraligi?`<div style="grid-column:1/-1"><span style="color:var(--text3)">Ölçüm Aralığı: </span>${x.olcumAraligi}</div>`:''}
+        ${(x.enSkoru!==''&&x.enSkoru!==null&&x.enSkoru!==undefined)?`<div style="grid-column:1/-1;margin-top:4px"><span style="color:var(--text3);font-size:11px">EN Skoru: </span>${enBar(x.enSkoru)}</div>`:''}
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.01)">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${files.length>0?`<button onclick="showLakFiles('${x.id}','${type}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">📎 ${files.length} dosya</button>`:'<span style="font-size:11px;color:var(--text3)">Dosya yok</span>'}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openLakModal('${x.id}','${type}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>
+          <button onclick="deleteLakItem('${x.id}','${type}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function uploadLakFile(id,type){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    const files=Array.from(e.target.files);
+    document.body.removeChild(inp);
+    if(!files.length) return;
+    let loaded=0;
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const items=DB.get(type)||[];
+        const i=items.findIndex(x=>x.id===id); if(i<0) return;
+        if(!items[i].files) items[i].files=[];
+        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
+        DB.set(type,items);
+        loaded++;
+        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderLakTable(type); }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+
+function showLakFiles(id,type){
+  const items=DB.get(type)||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const files=x.files||[];
+  const la=type==='lak';
+  const name=la?x.lakAdi:x.pakAdi;
+  if(!files.length){toast('Dosya yok','info');return;}
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open'; ov.style.zIndex=3000;
+  ov.innerHTML=`<div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title">📎 ${name} - Dosyalar</div><div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div></div>
+    <div class="modal-body" style="padding:16px">
+      ${files.map((f,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">${f.type==='application/pdf'?'📄':'📊'}</span>
+          <div><div style="font-size:13px;font-weight:600">${f.name}</div><div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="icon-btn" onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" title="Önizle">👁</button>
+          <button class="icon-btn" onclick="downloadLakFile('${id}','${type}',${i})" title="İndir">⬇</button>
+          ${canEdit(type)?`<button class="icon-btn" onclick="deleteLakFileItem('${id}','${type}',${i});this.closest('.modal-overlay').remove();showLakFiles('${id}','${type}')" style="color:var(--danger)" title="Sil">🗑</button>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function downloadLakFile(id,type,idx){
+  const items=DB.get(type)||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const f=x.files[idx]; if(!f) return;
+  const a=document.createElement('a'); a.href=f.data; a.download=f.name; a.click();
+}
+
+function deleteLakFileItem(id,type,idx){
+  const items=DB.get(type)||[];
+  const i=items.findIndex(x=>x.id===id); if(i<0) return;
+  items[i].files.splice(idx,1);
+  DB.set(type,items);
+}
+
+function deleteLakItem(id,type){
+  if(!confirm('Silmek istediğinize emin misiniz?')) return;
+  const items=(DB.get(type)||[]).filter(x=>x.id!==id);
+  DB.set(type,items);
+  toast('Silindi','success');
+  renderLakTable(type);
 }
 
 function updateLakDurum(id,type,val){
@@ -1614,7 +1664,11 @@ function addLakModal(type){
   const div=document.createElement('div');
   div.innerHTML=`<div class="modal-overlay" id="lak-modal">
     <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="lak-modal-title">${label} Ekle</div><div class="modal-close" onclick="closeModal('lak-modal')">${icon('x-circle',16)}</div></div>
-    <div class="modal-body">
+    <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
+      <div class="tab active" onclick="switchLakTab('bilgiler',this)">Bilgiler</div>
+      <div class="tab" onclick="switchLakTab('dosyalar',this)">Dosyalar</div>
+    </div>
+    <div id="lak-tab-bilgiler" class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>${label} Adı</label><input id="l-ad" type="text" placeholder="${label} adını girin"></div>
         <div class="form-group"><label>${label} Kodu</label><input id="l-kod" type="text" placeholder="ör. LAK-001"></div>
@@ -1633,8 +1687,21 @@ function addLakModal(type){
         <div class="form-group"><label>EN Skoru (0.00 - 1.00)</label><input id="l-en" type="number" min="0" max="1" step="0.01" placeholder="0.75"></div>
       </div>
       <div class="form-group"><label>Durum</label><select id="l-durum"><option>Sonuç Bekleniyor</option><option>Tamamlandı</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Katılımcı Sayısı</label><input id="l-katilimci" type="number" min="1" placeholder="ör. 5"></div>
+        <div class="form-group"><label>Lab Kodu</label><input id="l-labkod" type="text" placeholder="ör. LAB-001"></div>
+      </div>
+      <div class="form-group"><label>Ölçüm Aralığı</label><input id="l-olcum" type="text" placeholder="ör. 0-100 mm"></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('lak-modal')">İptal</button><button class="btn btn-primary" onclick="saveLak('${type}')">Kaydet</button></div>
+    </div>
+    <div id="lak-tab-dosyalar" class="modal-body" style="display:none">
+      <div id="lak-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div style="margin-top:16px">
+        <button onclick="uploadLakModalFile('${type}')" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
+          ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
+        </button>
+      </div>
     </div>
   </div>`;
   document.getElementById('content').appendChild(div);
@@ -1666,8 +1733,142 @@ function openLakModal(id,type){
     document.getElementById('l-sonuc').value='';
     document.getElementById('l-sonraki').value='';
     document.getElementById('l-durum').value='Sonuç Bekleniyor';
+    document.getElementById('l-katilimci').value='';
+    document.getElementById('l-labkod').value='';
+    document.getElementById('l-olcum').value='';
   }
   openModal('lak-modal');
+}
+
+
+function switchLakTab(tab, el){
+  document.getElementById('lak-tab-bilgiler').style.display = tab==='bilgiler'?'':'none';
+  document.getElementById('lak-tab-dosyalar').style.display = tab==='dosyalar'?'':'none';
+  document.querySelectorAll('#lak-modal .tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(tab==='dosyalar') renderLakModalFiles();
+}
+
+function switchUygTab(tab, el){
+  document.getElementById('uyg-tab-bilgiler').style.display = tab==='bilgiler'?'':'none';
+  document.getElementById('uyg-tab-dosyalar').style.display = tab==='dosyalar'?'':'none';
+  document.querySelectorAll('#uyg-modal .tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(tab==='dosyalar') renderUygModalFiles();
+}
+
+function renderLakModalFiles(){
+  const id = _editLakId;
+  const type = _editLakType;
+  if(!id||!type) return;
+  const items = DB.get(type)||[];
+  const x = items.find(x=>x.id===id);
+  const files = (x&&x.files)||[];
+  const el = document.getElementById('lak-dosya-listesi');
+  if(!el) return;
+  if(!files.length){ el.innerHTML='<div style="text-align:center;color:var(--text3);padding:20px">Henüz dosya yok</div>'; return; }
+  el.innerHTML = files.map((f,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">${f.type==='application/pdf'?'📄':'📊'}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600">${f.name}</div>
+          <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">👁 Önizle</button>
+        <button onclick="downloadLakFile('${id}','${type}',${i})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">⬇ İndir</button>
+        <button onclick="deleteLakFileItem('${id}','${type}',${i});renderLakModalFiles();renderLakTable('${type}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderUygModalFiles(){
+  const id = _editUygId;
+  if(!id) return;
+  const items = DB.get('uygunsuzluklar')||[];
+  const x = items.find(x=>x.id===id);
+  const files = (x&&x.files)||[];
+  const el = document.getElementById('uyg-dosya-listesi');
+  if(!el) return;
+  if(!files.length){ el.innerHTML='<div style="text-align:center;color:var(--text3);padding:20px">Henüz dosya yok</div>'; return; }
+  el.innerHTML = files.map((f,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">${f.type==='application/pdf'?'📄':'📊'}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600">${f.name}</div>
+          <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">👁 Önizle</button>
+        <button onclick="downloadUygFile('${id}',${i})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">⬇ İndir</button>
+        <button onclick="deleteUygFile('${id}',${i});renderUygModalFiles();renderUygCards()" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function uploadLakModalFile(type){
+  const id = _editLakId;
+  const t = type || _editLakType;
+  if(!id||!t){ toast('Önce kaydı kaydedin','error'); return; }
+  const inp = document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    const files=Array.from(e.target.files);
+    try{document.body.removeChild(inp);}catch(err){}
+    if(!files.length) return;
+    let loaded=0;
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const items=DB.get(t)||[];
+        const i=items.findIndex(x=>x.id===id); if(i<0) return;
+        if(!items[i].files) items[i].files=[];
+        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
+        DB.set(t,items);
+        loaded++;
+        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderLakModalFiles(); renderLakTable(t); }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+
+function uploadUygModalFile(){
+  const id = _editUygId;
+  if(!id){ toast('Önce kaydı kaydedin','error'); return; }
+  const inp = document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    const files=Array.from(e.target.files);
+    try{document.body.removeChild(inp);}catch(err){}
+    if(!files.length) return;
+    let loaded=0;
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const items=DB.get('uygunsuzluklar')||[];
+        const i=items.findIndex(x=>x.id===id); if(i<0) return;
+        if(!items[i].files) items[i].files=[];
+        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
+        DB.set('uygunsuzluklar',items);
+        loaded++;
+        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderUygModalFiles(); renderUygCards(); }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  inp.click();
 }
 
 function saveLak(type){
@@ -1682,7 +1883,10 @@ function saveLak(type){
     ilgiliStandart:document.getElementById('l-standart').value,
     sonucRaporTarihi:document.getElementById('l-sonuc').value,
     enSkoru:document.getElementById('l-en').value,
-    durum:document.getElementById('l-durum').value
+    durum:document.getElementById('l-durum').value,
+    katilimciSayisi:document.getElementById('l-katilimci').value,
+    labKodu:document.getElementById('l-labkod').value,
+    olcumAraligi:document.getElementById('l-olcum').value
   };
   if(la){
     data.lakAdi=ad; data.lakKodu=kod;
@@ -1766,17 +1970,14 @@ function renderAraKontrol(){
       <select class="tb-select" id="ara-durum" onchange="renderAraTable()"><option value="">Tüm Durumlar</option><option>Planlandı</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option><option>Gecikti</option></select>
       <select class="tb-select" id="ara-sort" onchange="renderAraTable()"><option value="tarih">Ara Kontrol Tarihi</option><option value="sonraki">Sonraki Planlanan</option><option value="envanter">Envanter No</option></select>
     </div>
-    <div class="table-wrap"><table>
-      <thead id="ara-thead-el"><tr></tr></thead>
-      <tbody id="ara-tbody"></tbody>
-    </table></div>
+    <div id="ara-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:8px"></div>
   </div>`;
   addAraModal();
   renderAraTable();
 }
 
 function renderAraTable(){
-  const tbody=document.getElementById('ara-tbody');if(!tbody)return;
+  const container=document.getElementById('ara-cards');if(!container)return;
   let items=DB.get('araKontrol')||[];
   const q=(document.getElementById('ara-search')?.value||'').toLowerCase();
   const kat=document.getElementById('ara-kat')?.value||'';
@@ -1793,52 +1994,94 @@ function renderAraTable(){
     if(durum&&x.durum!==durum)return false;
     return true;
   });
-  // Thead güncelle
-  const araTheadEl=document.getElementById('ara-thead-el');
-  if(araTheadEl){
-    const araCols=[
-      {key:'kategori',label:'Kategori'},
-      {key:'cihazAdi',label:'Cihaz Adı'},
-      {key:'marka',label:'Marka'},
-      {key:'model',label:'Model'},
-      {key:'seriNo',label:'Seri No'},
-      {key:'envanterNo',label:'Envanter No'},
-      {key:'araKontrolTarihi',label:'Ara Kontrol Tarihi'},
-      {key:'birSonrakiPlanliAra',label:'Sonraki Planlanan'},
-      {key:'yapan',label:'Yapan'},
-      {key:'kriter',label:'Kriter'},
-      {key:'durum',label:'Durum'},
-      {key:'__islemler',label:'Dosyalar'},
-      {key:'__islemler2',label:'İşlemler'},
-    ];
-    araTheadEl.innerHTML=buildSortThead('ara', araCols);
-  }
-  items=applySortToItems('ara', items);
-  if(!items.length){tbody.innerHTML=`<tr><td colspan="13"><div class="empty-state"><p>Kayıt bulunamadı</p></div></td></tr>`;return;}
-  tbody.innerHTML=items.map(x=>{
-    const isOverdue=x.durum==='Gecikti';
-    const durumBadge={Planlandı:'badge-blue',Tamamlandı:'badge-green','Sonuç Bekleniyor':'badge-amber',Gecikti:'badge-red'}[x.durum]||'badge-gray';
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Kayıt bulunamadı</p></div>';return;}
+  const durumColors={Planlandı:'badge-blue',Tamamlandı:'badge-green','Sonuç Bekleniyor':'badge-amber',Gecikti:'badge-red'};
+  container.innerHTML=items.map(x=>{
+    const files=x.files||[];
+    const d=daysDiff(x.birSonrakiPlanliAra);
+    const spBadge=d===null?'':`<span class="badge ${d<0?'badge-red':d<=30?'badge-amber':'badge-blue'}" style="font-size:10px">${d<0?Math.abs(d)+' gün geçti':d+' gün kaldı'}</span>`;
     const isISO=x.kriter?.includes('ISO 17025')||x.kriter?.includes('ISO/IEC 17025');
-    return `<tr>
-    <td>${katBadge(x.kategori?.toLowerCase())}</td>
-    <td class="strong">${isOverdue?`<span class="overdue-dot"></span>`:''}${x.cihazAdi||'-'}</td>
-    <td>${x.marka||'-'}</td><td>${x.model||'-'}</td><td>${x.seriNo||'-'}</td><td>${x.envanterNo||'-'}</td>
-    <td>${formatDate(x.araKontrolTarihi)}</td>
-    <td>${formatDate(x.birSonrakiPlanliAra)}</td>
-    <td>${x.yapan||'-'}</td>
-    <td><span class="badge ${isISO?'badge-blue':'badge-gray'}" style="${isISO?'border-color:rgba(79,107,240,.4)':''}">${x.kriter||'-'}</span></td>
-    <td>${canEdit('araKontrol')?`<select class="tb-select" style="padding:3px 6px;font-size:11.5px" onchange="updateAraDurum('${x.id}',this.value)"><option ${x.durum==='Planlandı'?'selected':''}>Planlandı</option><option ${x.durum==='Sonuç Bekleniyor'?'selected':''}>Sonuç Bekleniyor</option><option ${x.durum==='Tamamlandı'?'selected':''}>Tamamlandı</option><option ${x.durum==='Gecikti'?'selected':''}>Gecikti</option></select>`:`<span class="badge ${durumBadge}">${x.durum||'-'}</span>`}</td>
-    <td><div class="action-btns">
-      ${canEdit('araKontrol')?`<button class="icon-btn" title="PDF Yükle" onclick="uploadAraFile('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">PDF</span></button>`:''}
-      ${x.pdfFile?`<button class="icon-btn" title="PDF Önizle" onclick="previewAraFileById('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('eye',12)}</button>`:''}
-      ${canEdit('araKontrol')?`<button class="icon-btn" title="Word/Excel Yükle" onclick="uploadAraFile('${x.id}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">W/E</span></button>`:''}
-      ${x.officeFile?`<button class="icon-btn" title="Word/Excel Önizle/İndir" onclick="previewAraFileById('${x.id}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('eye',12)}</button>`:''}
-    </div></td>
-    <td><div class="action-btns">
-      ${canEdit('araKontrol')?`<button class="icon-btn" onclick="openAraModal('${x.id}')">${icon('edit',13)}</button>`:''}
-      ${canEdit('araKontrol')?`<button class="icon-btn danger" onclick="deleteAra('${x.id}')">${icon('trash',13)}</button>`:''}
-    </div></td>
-  </tr>`;}).join('');
+    const isOverdue=x.durum==='Gecikti';
+    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid ${isOverdue?'rgba(220,38,38,.4)':'var(--border)'};transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:8px;background:rgba(0,212,170,.1);display:flex;align-items:center;justify-content:center;font-size:18px">🔧</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${isOverdue?'<span style="color:#ef4444">⚠ </span>':''}${x.cihazAdi||'-'}</div>
+            <div style="font-size:11px;color:var(--text3)">${x.marka||''} ${x.model?'· '+x.model:''} ${x.seriNo?'· '+x.seriNo:''}</div>
+          </div>
+        </div>
+        ${katBadge(x.kategori?.toLowerCase())}
+      </div>
+      <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <div><span style="color:var(--text3)">Envanter: </span>${x.envanterNo||'-'}</div>
+        <div><span style="color:var(--text3)">Durum: </span><span class="badge ${durumColors[x.durum]||'badge-gray'}" style="font-size:10px">${x.durum||'-'}</span></div>
+        <div><span style="color:var(--text3)">Kontrol Tarihi: </span>${formatDate(x.araKontrolTarihi)||'-'}</div>
+        <div><span style="color:var(--text3)">Sonraki: </span>${formatDate(x.birSonrakiPlanliAra)||'-'} ${spBadge}</div>
+        ${x.yapan?`<div><span style="color:var(--text3)">Yapan: </span>${x.yapan}</div>`:''}
+        ${x.kriter?`<div><span class="badge ${isISO?'badge-blue':'badge-gray'}" style="font-size:10px">${x.kriter}</span></div>`:''}
+        ${x.sonuc?`<div style="grid-column:1/-1"><span style="color:var(--text3)">Sonuç: </span>${x.sonuc}</div>`:''}
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:6px;align-items:center">
+          ${files.length>0?`<button onclick="showAraFiles('${x.id}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">📎 ${files.length} dosya</button>`:'<span style="font-size:11px;color:var(--text3)">Dosya yok</span>'}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openAraModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>
+          <button onclick="deleteAraItem('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showAraFiles(id){
+  const items=DB.get('araKontrol')||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const files=x.files||[];
+  if(!files.length){toast('Dosya yok','info');return;}
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open'; ov.style.zIndex=3000;
+  ov.innerHTML=`<div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title">📎 ${x.cihazAdi} - Dosyalar</div><div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div></div>
+    <div class="modal-body" style="padding:16px">
+      ${files.map((f,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">${f.type==='application/pdf'?'📄':'📊'}</span>
+          <div><div style="font-size:13px;font-weight:600">${f.name}</div><div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">👁</button>
+          <button onclick="downloadAraFile('${id}',${i})" style="padding:5px 8px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">⬇</button>
+          <button onclick="deleteAraFileItem('${id}',${i});this.closest('.modal-overlay').remove();showAraFiles('${id}')" style="padding:5px 8px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">🗑</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function downloadAraFile(id,idx){
+  const items=DB.get('araKontrol')||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const f=x.files[idx]; if(!f) return;
+  const a=document.createElement('a'); a.href=f.data; a.download=f.name; a.click();
+}
+
+function deleteAraFileItem(id,idx){
+  const items=DB.get('araKontrol')||[];
+  const i=items.findIndex(x=>x.id===id); if(i<0) return;
+  items[i].files.splice(idx,1);
+  DB.set('araKontrol',items);
+  renderAraTable();
+}
+
+function deleteAraItem(id){
+  if(!confirm('Silmek istediğinize emin misiniz?')) return;
+  const items=(DB.get('araKontrol')||[]).filter(x=>x.id!==id);
+  DB.set('araKontrol',items);
+  toast('Silindi','success');
+  renderAraTable();
 }
 
 function updateAraDurum(id,val){
@@ -1890,7 +2133,11 @@ function addAraModal(){
   const div=document.createElement('div');
   div.innerHTML=`<div class="modal-overlay" id="ara-modal">
     <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="ara-modal-title">Ara Kontrol Ekle</div><div class="modal-close" onclick="closeModal('ara-modal')">${icon('x-circle',16)}</div></div>
-    <div class="modal-body">
+    <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
+      <div class="tab active" onclick="switchAraTab('bilgiler',this)">Bilgiler</div>
+      <div class="tab" onclick="switchAraTab('dosyalar',this)">Dosyalar</div>
+    </div>
+    <div id="ara-tab-bilgiler" class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>Cihaz Adı</label><input id="a-cihaz" type="text" placeholder="Cihaz adını girin"></div>
         <div class="form-group"><label>Kategori</label><select id="a-kat">${ARA_KATEGORILER.map(k=>`<option>${k}</option>`).join('')}</select></div>
@@ -1914,6 +2161,14 @@ function addAraModal(){
       <div class="form-group"><label>Durum</label><select id="a-durum"><option>Planlandı</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option><option>Gecikti</option></select></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('ara-modal')">İptal</button><button class="btn btn-primary" onclick="saveAra()">Kaydet</button></div>
+    </div>
+    <div id="ara-tab-dosyalar" class="modal-body" style="display:none">
+      <div id="ara-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div style="margin-top:16px">
+        <button onclick="uploadAraModalFile()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
+          ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
+        </button>
+      </div>
     </div>
   </div>`;
   document.getElementById('content').appendChild(div);
@@ -1945,6 +2200,71 @@ function openAraModal(id){
   }
   openModal('ara-modal');
 }
+
+function switchAraTab(tab, el){
+  document.getElementById('ara-tab-bilgiler').style.display = tab==='bilgiler'?'':'none';
+  document.getElementById('ara-tab-dosyalar').style.display = tab==='dosyalar'?'':'none';
+  document.querySelectorAll('#ara-modal .tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  if(tab==='dosyalar') renderAraModalFiles();
+}
+
+function renderAraModalFiles(){
+  const id = _editAraId;
+  if(!id) return;
+  const items = DB.get('araKontrol')||[];
+  const x = items.find(x=>x.id===id);
+  const files = (x&&x.files)||[];
+  const el = document.getElementById('ara-dosya-listesi');
+  if(!el) return;
+  if(!files.length){ el.innerHTML='<div style="text-align:center;color:var(--text3);padding:20px">Henüz dosya yok</div>'; return; }
+  el.innerHTML = files.map((f,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">${f.type==='application/pdf'?'📄':'📊'}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600">${f.name}</div>
+          <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">👁 Önizle</button>
+        <button onclick="downloadAraFile('${id}',${i})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">⬇ İndir</button>
+        <button onclick="deleteAraFileItem('${id}',${i});renderAraModalFiles();renderAraTable()" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function uploadAraModalFile(){
+  const id = _editAraId;
+  if(!id){ toast('Önce kaydı kaydedin','error'); return; }
+  const inp = document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    const files=Array.from(e.target.files);
+    try{document.body.removeChild(inp);}catch(err){}
+    if(!files.length) return;
+    let loaded=0;
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const items=DB.get('araKontrol')||[];
+        const i=items.findIndex(x=>x.id===id); if(i<0) return;
+        if(!items[i].files) items[i].files=[];
+        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
+        DB.set('araKontrol',items);
+        loaded++;
+        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderAraModalFiles(); renderAraTable(); }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  inp.click();
+}
+
 function saveAra(){
   const cihaz=document.getElementById('a-cihaz').value.trim();
   if(!cihaz){toast('Cihaz adı zorunlu','error');return;}
@@ -2160,7 +2480,10 @@ function addRefModal(){
     <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="ref-modal-title">Cihaz Ekle</div><div class="modal-close" onclick="closeModal('ref-modal')">${icon('x-circle',16)}</div></div>
     <div class="modal-body">
       <div class="form-row">
+        <div class="form-group"><label>Kategori</label><select id="r-kategori">${KATEGORILER.map(k=>`<option>${k}</option>`).join('')}</select></div>
         <div class="form-group"><label>Cihaz Adı</label><input id="r-cihaz" type="text"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Marka</label><input id="r-marka" type="text"></div>
       </div>
       <div class="form-row">
@@ -2192,6 +2515,7 @@ function openRefModal(id){
   document.getElementById('ref-modal-title').textContent=id?'Cihaz Düzenle':'Cihaz Ekle';
   if(id){
     const x=(DB.get('referans')||[]).find(x=>x.id===id);if(!x)return;
+    document.getElementById('r-kategori').value=x.kategori||KATEGORILER[0];
     document.getElementById('r-cihaz').value=x.cihazAdi||'';
     document.getElementById('r-marka').value=x.marka||'';
     document.getElementById('r-model').value=x.model||'';
@@ -2333,11 +2657,12 @@ function doImportRefExcel(){
 }
 
 function saveRef(){
+  const kategori=document.getElementById('r-kategori').value;
   const cihaz=document.getElementById('r-cihaz').value.trim();
   if(!cihaz){toast('Cihaz adı zorunlu','error');return;}
   const items=DB.get('referans')||[];
   const md=document.getElementById('r-durum').value;
-  const data={cihazAdi:cihaz,marka:document.getElementById('r-marka').value,model:document.getElementById('r-model').value,seriNo:document.getElementById('r-seri').value,envanterNo:document.getElementById('r-envanter').value,kalibrasyonNo:document.getElementById('r-kalno').value,kalibrasyonTarihi:document.getElementById('r-tarih').value,birSonrakiKalibrasyon:document.getElementById('r-sonraki').value,degerlendirmeKriteri:document.getElementById('r-kriter').value,durum:md||'Güncel',manualDurum:!!md};
+  const data={kategori,cihazAdi:cihaz,marka:document.getElementById('r-marka').value,model:document.getElementById('r-model').value,seriNo:document.getElementById('r-seri').value,envanterNo:document.getElementById('r-envanter').value,kalibrasyonNo:document.getElementById('r-kalno').value,kalibrasyonTarihi:document.getElementById('r-tarih').value,birSonrakiKalibrasyon:document.getElementById('r-sonraki').value,degerlendirmeKriteri:document.getElementById('r-kriter').value,durum:md||'Güncel',manualDurum:!!md};
   const u2=getActiveUser();
   if(_editRefId){
     const i=items.findIndex(x=>x.id===_editRefId);
@@ -2806,6 +3131,1263 @@ function updateUserDisplay(){
 }
 
 // ==================== AYARLAR ====================
+
+function renderSatinAlmaTalep(){
+  if(!canView('satinalma')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="page">
+    <div class="section-header">
+      <div class="section-title">Kalibrasyon Satın Alma Talepleri</div>
+      ${canEdit('satinalma')?`<button class="btn btn-primary" onclick="openSATModal(null)">${icon('plus',14)} Yeni Talep</button>`:''}
+    </div>
+    <div class="toolbar">
+      <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="sat-search" type="text" placeholder="Talep no, talep eden, tedarikçi ara..." oninput="renderSATCards()">
+      </div>
+      <select class="tb-select" id="sat-durum" onchange="renderSATCards()">
+        <option value="">Tüm Durumlar</option>
+        <option>Taslak</option>
+        <option>Onay Bekliyor</option>
+        <option>Onaylandı</option>
+        <option>Reddedildi</option>
+      </select>
+    </div>
+    <div id="sat-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;margin-top:8px"></div>
+  </div>`;
+  addSATModal();
+  renderSATCards();
+}
+
+function renderSATCards(){
+  const container=document.getElementById('sat-cards');if(!container)return;
+  let items=DB.get('satinAlmaTalep')||[];
+  const q=(document.getElementById('sat-search')?.value||'').toLowerCase();
+  const durum=document.getElementById('sat-durum')?.value||'';
+  items=items.filter(x=>{
+    if(q&&!['talepNo','talepEden','tedarikci'].some(k=>x[k]?.toLowerCase().includes(q)))return false;
+    if(durum&&x.durum!==durum)return false;
+    return true;
+  });
+  items.sort((a,b)=>(b.talepTarihi||'').localeCompare(a.talepTarihi||''));
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Talep bulunamadı</p></div>';return;}
+  const durumBadge={'Taslak':'badge-gray','Onay Bekliyor':'badge-amber','Onaylandı':'badge-green','Reddedildi':'badge-red'};
+  const durumIcon={'Taslak':'📝','Onay Bekliyor':'⏳','Onaylandı':'✅','Reddedildi':'❌'};
+  container.innerHTML=items.map(x=>{
+    const urunler=x.urunler||[];
+    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:8px;background:rgba(79,107,240,.15);display:flex;align-items:center;justify-content:center;font-size:18px">🛒</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${x.talepNo||'-'}</div>
+            <div style="font-size:11px;color:var(--text3)">${formatDate(x.talepTarihi)} · ${x.talepEden||''}</div>
+          </div>
+        </div>
+        <span class="badge ${durumBadge[x.durum]||'badge-gray'}">${durumIcon[x.durum]||''} ${x.durum||'Taslak'}</span>
+      </div>
+      <!-- Aşama göstergesi -->
+      <div style="padding:8px 16px;background:rgba(0,0,0,.15);display:flex;align-items:center;gap:0">
+        ${['Talep','Onay','Tdr.Değ.','Ref.Değ.','Tamam'].map((s,i)=>{
+          const d=x.durum;
+          const aktif=(d==='Taslak'&&i===0)||(d==='Onay Bekliyor'&&i<=0)||(d==='Onaylandı'&&i<=1)||(d==='TdrTamamlandi'&&i<=2)||(d==='Tamamlandı'&&i<=4);
+          const simdiki=(d==='Onaylandı'&&i===2)||(d==='TdrTamamlandi'&&i===3);
+          return `<div style="display:flex;align-items:center;flex:1">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:18px;height:18px;border-radius:50%;background:${aktif?'var(--accent)':simdiki?'var(--warn)':'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700">${aktif?'✓':i+1}</div>
+              <div style="font-size:8px;color:${aktif?'var(--accent)':simdiki?'var(--warn)':'var(--text3)'};white-space:nowrap">${s}</div>
+            </div>
+            ${i<4?`<div style="flex:1;height:2px;background:${aktif&&i<4?'var(--accent)':'var(--border)'};margin:0 2px;margin-bottom:12px"></div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:none">
+      </div>
+      <div style="padding:12px 16px;font-size:12px;display:flex;flex-direction:column;gap:6px">
+        ${x.tedarikci?`<div><span style="color:var(--text3)">Tedarikçi: </span><b>${x.tedarikci}</b></div>`:''}
+        ${x.istenenTarih?`<div><span style="color:var(--text3)">İstenen Tarih: </span>${formatDate(x.istenenTarih)}</div>`:''}
+        ${x.inceleyen?`<div><span style="color:var(--text3)">İnceleyen: </span>${x.inceleyen}</div>`:''}
+        <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:6px">
+          <span style="color:var(--text3)">Ürün/Hizmetler: </span>
+          ${urunler.map(u=>`<span style="background:rgba(0,212,170,.1);color:var(--accent);padding:2px 8px;border-radius:12px;margin:2px;display:inline-block;font-size:11px">${u.aciklama} (${u.miktar} ${u.birim})</span>`).join('')||'-'}
+        </div>
+        ${x.onaylayanAd?`<div style="margin-top:4px;font-size:11px;color:var(--text3)">Onaylayan: ${x.onaylayanAd} · ${formatDate(x.onayTarihi)}</div>`:''}
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:6px">
+          ${x.durum==='Onay Bekliyor'&&canEdit('satinalma')?`
+            <button onclick="onaylaSAT('${x.id}','Onaylandı')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(22,163,74,.4);background:transparent;color:#16a34a;cursor:pointer;font-size:12px">✅ Onayla</button>
+            <button onclick="onaylaSAT('${x.id}','Reddedildi')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">❌ Reddet</button>`:''}
+          ${x.durum==='Onaylandı'&&canEdit('satinalma')?`<button onclick="acikDegerlendirme('${x.id}')" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(79,107,240,.6);background:rgba(79,107,240,.15);color:var(--primary);cursor:pointer;font-size:12px;font-weight:600">⭐ Değerlendir</button>`:''}
+          ${x.durum==='Taslak'&&canEdit('satinalma')?`<button onclick="onaylaSAT('${x.id}','Onay Bekliyor')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(245,158,11,.4);background:transparent;color:#f59e0b;cursor:pointer;font-size:12px">📤 Onaya Gönder</button>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="printSATPdf('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('file-pdf',12)} PDF</button>
+          ${canEdit('satinalma')?`<button onclick="openSATModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>`:''}
+          ${canEdit('satinalma')?`<button onclick="deleteSAT('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let _editSATId=null;
+let _satUrunler=[];
+
+function addSATModal(){
+  if(document.getElementById('sat-modal')) return;
+  const persons=DB.get('personeller')||[];
+  const tedarikciList=DB.get('tedarikci')||[];
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="sat-modal" class="modal-overlay">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header"><div class="modal-title" id="sat-modal-title">Yeni Satın Alma Talebi</div><div class="modal-close" onclick="closeModal('sat-modal')">${icon('x-circle',16)}</div></div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+        <div class="form-row">
+          <div class="form-group"><label>Talep No</label><input id="sat-no" type="text" placeholder="Otomatik veya manuel girin"></div>
+          <div class="form-group"><label>Talep Tarihi</label><input id="sat-tarih" type="date"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Talep Eden</label><select id="sat-talep-eden">
+            <option value="">Seçiniz...</option>
+            ${persons.map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad} - ${p.gorev||''}</option>`).join('')}
+          </select></div>
+          <div class="form-group"><label>İstenen Tarih</label><input id="sat-istenen-tar" type="date"></div>
+        </div>
+        <div class="form-group"><label>Tedarikçi</label><select id="sat-tedarikci">
+          <option value="">Seçiniz...</option>
+          ${tedarikciList.map(t=>`<option value="${t.firma}">${t.firma} — ${t.urunHizmet||''}</option>`).join('')}
+        </select></div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;justify-content:space-between">
+            <span>Ürün / Hizmet Listesi</span>
+            <button onclick="addSATUrun()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">+ Ekle</button>
+          </label>
+          <div id="sat-urun-listesi" style="margin-top:8px;display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div class="form-group"><label>İstem Dokümantasyonu / Açıklama</label><textarea id="sat-aciklama" style="min-height:80px" placeholder="Kalibrasyon kapsamı, özel gereksinimler vb..."></textarea></div>
+        <div class="form-group"><label>İnceleyen</label><select id="sat-inceleyen">
+          <option value="">Seçiniz...</option>
+          ${persons.map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad} - ${p.gorev||''}</option>`).join('')}
+        </select></div>
+        <div class="form-group"><label>Notlar</label><textarea id="sat-notlar" style="min-height:60px" placeholder="Ek notlar..."></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('sat-modal')">İptal</button>
+        <button class="btn btn-ghost" onclick="saveSAT('Taslak')">${icon('save',13)} Taslak Kaydet</button>
+        <button class="btn btn-primary" onclick="saveSAT('Onay Bekliyor')">${icon('send',13)} Onaya Gönder</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function addSATUrun(){
+  _satUrunler.push({aciklama:'',miktar:1,birim:'Adet',ozellikler:''});
+  renderSATUrunler();
+}
+
+function removeSATUrun(i){
+  _satUrunler.splice(i,1);
+  renderSATUrunler();
+}
+
+function renderSATUrunler(){
+  const el=document.getElementById('sat-urun-listesi');if(!el)return;
+  if(!_satUrunler.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">Henüz ürün/hizmet eklenmedi. + Ekle butonuna basın.</div>';return;}
+  el.innerHTML=_satUrunler.map((u,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 70px 80px 1fr 30px;gap:6px;align-items:center;padding:8px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)">
+      <input type="text" value="${u.aciklama||''}" placeholder="Açıklama / Hizmet adı" style="font-size:12px" oninput="_satUrunler[${i}].aciklama=this.value">
+      <input type="number" value="${u.miktar||1}" min="1" style="font-size:12px" oninput="_satUrunler[${i}].miktar=this.value">
+      <input type="text" value="${u.birim||'Adet'}" placeholder="Birim" style="font-size:12px" oninput="_satUrunler[${i}].birim=this.value">
+      <input type="text" value="${u.ozellikler||''}" placeholder="Özellikler" style="font-size:12px" oninput="_satUrunler[${i}].ozellikler=this.value">
+      <button onclick="removeSATUrun(${i})" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:16px">×</button>
+    </div>`).join('');
+}
+
+function openSATModal(id){
+  _editSATId=id;
+  _satUrunler=[];
+  document.getElementById('sat-modal-title').textContent=id?'Talebi Düzenle':'Yeni Satın Alma Talebi';
+  const s=DB.get('settings')||{};
+  if(id){
+    const x=(DB.get('satinAlmaTalep')||[]).find(x=>x.id===id);if(!x)return;
+    document.getElementById('sat-no').value=x.talepNo||'';
+    document.getElementById('sat-tarih').value=x.talepTarihi||'';
+    document.getElementById('sat-talep-eden').value=x.talepEden||'';
+    document.getElementById('sat-istenen-tar').value=x.istenenTarih||'';
+    document.getElementById('sat-tedarikci').value=x.tedarikci||'';
+    document.getElementById('sat-aciklama').value=x.aciklama||'';
+    document.getElementById('sat-inceleyen').value=x.inceleyen||'';
+    document.getElementById('sat-notlar').value=x.notlar||'';
+    _satUrunler=JSON.parse(JSON.stringify(x.urunler||[]));
+  } else {
+    const items=DB.get('satinAlmaTalep')||[];
+    const formNo=s.kalFormNo||'SAT';
+    document.getElementById('sat-no').value=formNo+'-'+(items.length+1).toString().padStart(3,'0');
+    document.getElementById('sat-tarih').value=today();
+    document.getElementById('sat-talep-eden').value='';
+    document.getElementById('sat-istenen-tar').value='';
+    document.getElementById('sat-tedarikci').value='';
+    document.getElementById('sat-aciklama').value='';
+    document.getElementById('sat-inceleyen').value='';
+    document.getElementById('sat-notlar').value='';
+  }
+  renderSATUrunler();
+  openModal('sat-modal');
+}
+
+function saveSAT(durum){
+  const talepEden=document.getElementById('sat-talep-eden').value;
+  if(!talepEden){toast('Talep eden zorunlu','error');return;}
+  if(!_satUrunler.length){toast('En az bir ürün/hizmet ekleyin','error');return;}
+  const items=DB.get('satinAlmaTalep')||[];
+  const data={
+    talepNo:document.getElementById('sat-no').value.trim(),
+    talepTarihi:document.getElementById('sat-tarih').value,
+    talepEden,
+    istenenTarih:document.getElementById('sat-istenen-tar').value,
+    tedarikci:document.getElementById('sat-tedarikci').value,
+    aciklama:document.getElementById('sat-aciklama').value,
+    inceleyen:document.getElementById('sat-inceleyen').value,
+    notlar:document.getElementById('sat-notlar').value,
+    urunler:JSON.parse(JSON.stringify(_satUrunler)),
+    durum
+  };
+  if(_editSATId){
+    const i=items.findIndex(x=>x.id===_editSATId);
+    if(i>=0) items[i]={...items[i],...data};
+  } else {
+    data.id='sat_'+Date.now();
+    data.olusturmaTarihi=today();
+    items.push(data);
+  }
+  DB.set('satinAlmaTalep',items);
+  closeModal('sat-modal');
+  toast(durum==='Taslak'?'Taslak kaydedildi':'Onaya gönderildi','success');
+  renderSATCards();
+}
+
+function acikDegerlendirme(satId){
+  // Değerlendirme kaydını bul veya oluştur
+  const degItems=DB.get('tedDegerlendirme')||[];
+  let deg=degItems.find(d=>d.satId===satId);
+  if(!deg){
+    // Henüz oluşmadıysa oluştur
+    const sat=(DB.get('satinAlmaTalep')||[]).find(x=>x.id===satId);
+    if(!sat)return;
+    deg={
+      id:'tdg_'+Date.now(),
+      satId,
+      talepNo:sat.talepNo,
+      firmaAdi:sat.tedarikci,
+      degerlendirmeKonusu:sat.urunler?.map(u=>u.aciklama).join(', ')||'',
+      duzenlenmeTarihi:today(),
+      durum:'Bekliyor',
+      a1:0,a2:0,a3:0,b1:0,b2:0,b3:0,c1:0,c2:0,d1:0
+    };
+    degItems.push(deg);
+    DB.set('tedDegerlendirme',degItems);
+  }
+  // Modal yoksa ekle
+  if(!document.getElementById('tdg-modal')) addTDGModal();
+  openTDGModal(deg.id);
+}
+
+function onaylaSAT(id, durum){
+  const items=DB.get('satinAlmaTalep')||[];
+  const i=items.findIndex(x=>x.id===id);if(i<0)return;
+  const u=getActiveUser();
+  items[i].durum=durum;
+  if(durum==='Onaylandı'){
+    items[i].onaylayanAd=u?(u.ad+' '+u.soyad):'';
+    items[i].onayTarihi=today();
+    // Otomatik değerlendirme kaydı oluştur
+    const degItems=DB.get('tedDegerlendirme')||[];
+    const sat=items[i];
+    if(!degItems.find(d=>d.satId===id)){
+      degItems.push({
+        id:'tdg_'+Date.now(),
+        satId:id,
+        talepNo:sat.talepNo,
+        firmaAdi:sat.tedarikci,
+        degerlendirmeKonusu:sat.urunler?.map(u=>u.aciklama).join(', ')||'',
+        duzenlenmeTarihi:today(),
+        durum:'Bekliyor',
+        // Puanlar
+        a1:0,a2:0,a3:0,
+        b1:0,b2:0,b3:0,
+        c1:0,c2:0,
+        d1:0
+      });
+      DB.set('tedDegerlendirme',degItems);
+    }
+  }
+  DB.set('satinAlmaTalep',items);
+  toast(durum==='Onaylandı'?'Onaylandı! Tedarikçi Değerlendirme oluşturuldu ✅':'Reddedildi','success');
+  renderSATCards();
+}
+
+function deleteSAT(id){
+  if(!confirm('Bu talebi silmek istediğinize emin misiniz?'))return;
+  DB.set('satinAlmaTalep',(DB.get('satinAlmaTalep')||[]).filter(x=>x.id!==id));
+  toast('Silindi','success');
+  renderSATCards();
+}
+
+function printSATPdf(id){
+  const items=DB.get('satinAlmaTalep')||[];
+  const x=items.find(x=>x.id===id);if(!x)return;
+  const s=DB.get('settings')||{};
+  const firma=s.firmName||'';
+  const formNo=s.kalFormNo||'AKFG422';
+  const revNo=s.kalRevNo||'00';
+  const revTar=s.kalRevTar?formatDate(s.kalRevTar):'--.--.----';
+  const urunler=x.urunler||[];
+
+  const urunRows=urunler.map((u,i)=>`
+    <tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${u.aciklama||'-'}</td>
+      <td style="text-align:center">${u.miktar||'-'}</td>
+      <td style="text-align:center">${u.birim||'-'}</td>
+      <td>${u.ozellikler||'-'}</td>
+    </tr>`).join('');
+
+  const durumRenk=x.durum==='Onaylandı'?'#16a34a':x.durum==='Reddedildi'?'#dc2626':'#d97706';
+
+  const html=`<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>${formNo} - Satınalma Talebi</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}
+  .header-table{width:100%;border-collapse:collapse;border:1px solid #000;margin-bottom:12px}
+  .header-table td{border:1px solid #000;padding:6px 10px;vertical-align:middle}
+  .title{font-size:13px;font-weight:700;text-align:center}
+  .label{color:#555;font-size:10px;margin-bottom:2px}
+  .value{font-size:11px;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:2px;min-height:18px}
+  .section{margin-bottom:14px}
+  .section-title{font-weight:700;font-size:11px;background:#1e293b;color:#fff;padding:5px 8px;margin-bottom:0}
+  table{width:100%;border-collapse:collapse}
+  th{background:#334155;color:#fff;padding:6px 8px;border:1px solid #555;font-size:10px;text-align:left}
+  td{padding:5px 8px;border:1px solid #ccc;font-size:10px}
+  tr:nth-child(even){background:#f8fafc}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .info-box{border:1px solid #ccc;padding:8px;border-radius:4px}
+  .durum-badge{display:inline-block;padding:3px 10px;border-radius:4px;color:#fff;background:${durumRenk};font-weight:700;font-size:11px}
+  .footer{margin-top:16px;border-top:1px solid #ccc;padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#666}
+  .onay-box{border:1px solid #ccc;padding:10px;margin-top:14px;border-radius:4px}
+  .onay-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .imza-alan{border-top:1px solid #333;margin-top:30px;padding-top:4px;text-align:center;font-size:10px}
+  @media print{body{padding:10px}}
+</style>
+</head>
+<body>
+  <table class="header-table">
+    <tr>
+      <td style="width:25%;font-weight:700;font-size:13px">${firma}</td>
+      <td class="title">SATINALMA İHTİYACI TALEP FORMU</td>
+      <td style="width:25%;font-size:10px">
+        <div style="display:flex;justify-content:space-between"><span>Form No:</span><b>${formNo}</b></div>
+        <div style="display:flex;justify-content:space-between"><span>Rev. No:</span><b>${revNo}</b></div>
+        <div style="display:flex;justify-content:space-between"><span>Rev. Tar.:</span><b>${revTar}</b></div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="info-grid">
+    <div class="info-box"><div class="label">Talep No</div><div class="value">${x.talepNo||'-'}</div></div>
+    <div class="info-box"><div class="label">Talep Tarihi</div><div class="value">${formatDate(x.talepTarihi)||'-'}</div></div>
+    <div class="info-box"><div class="label">İstenen Tarih</div><div class="value">${formatDate(x.istenenTarih)||'-'}</div></div>
+    <div class="info-box"><div class="label">Talep Eden</div><div class="value">${x.talepEden||'-'}</div></div>
+    <div class="info-box"><div class="label">Tedarikçi</div><div class="value">${x.tedarikci||'-'}</div></div>
+    <div class="info-box"><div class="label">Durum</div><div class="value"><span class="durum-badge">${x.durum||'Taslak'}</span></div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ÜRÜN / HİZMET LİSTESİ</div>
+    <table>
+      <thead><tr><th style="width:30px">#</th><th>Açıklama / Hizmet Adı</th><th style="width:60px">Miktar</th><th style="width:60px">Birim</th><th>Özellikler</th></tr></thead>
+      <tbody>${urunRows||'<tr><td colspan="5" style="text-align:center">-</td></tr>'}</tbody>
+    </table>
+  </div>
+
+  ${x.aciklama?`<div class="section">
+    <div class="section-title">İSTEM DOKÜMANTASYONU / AÇIKLAMA</div>
+    <div style="padding:8px;border:1px solid #ccc;min-height:50px">${x.aciklama}</div>
+  </div>`:''}
+
+  ${x.notlar?`<div class="section">
+    <div class="section-title">NOTLAR</div>
+    <div style="padding:8px;border:1px solid #ccc">${x.notlar}</div>
+  </div>`:''}
+
+  <div class="onay-box">
+    <div class="onay-grid">
+      <div>
+        <div style="font-weight:700;font-size:11px;margin-bottom:8px">HAZIRLAYAN</div>
+        <div style="font-size:11px;margin-bottom:4px">${x.talepEden||''}</div>
+        <div class="imza-alan">İmza / Tarih: ${formatDate(x.talepTarihi)||''}</div>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:11px;margin-bottom:8px">İNCELEYEN / ONAYLAYAN</div>
+        <div style="font-size:11px;margin-bottom:4px">${x.onaylayanAd||x.inceleyen||''}</div>
+        <div class="imza-alan">İmza / Tarih: ${x.onayTarihi?formatDate(x.onayTarihi):''}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>${firma}</span>
+    <span>${formNo} | Rev:${revNo} | ${revTar}</span>
+  </div>
+  <script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
+
+  const w=window.open('','_blank','width=900,height=700');
+  w.document.write(html);
+  w.document.close();
+}
+
+
+function renderTedDegerlendirme(){
+  if(!canView('satinalma')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="page">
+    <div class="section-header">
+      <div class="section-title">Tedarikçi Değerlendirme</div>
+    </div>
+    <div class="toolbar">
+      <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="tdg-search" type="text" placeholder="Firma, talep no ara..." oninput="renderTDGCards()">
+      </div>
+      <select class="tb-select" id="tdg-durum" onchange="renderTDGCards()">
+        <option value="">Tüm Durumlar</option>
+        <option>Bekliyor</option>
+        <option>Tamamlandı</option>
+      </select>
+    </div>
+    <div id="tdg-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;margin-top:8px"></div>
+  </div>`;
+  addTDGModal();
+  renderTDGCards();
+}
+
+function renderTDGCards(){
+  const container=document.getElementById('tdg-cards');if(!container)return;
+  let items=DB.get('tedDegerlendirme')||[];
+  const q=(document.getElementById('tdg-search')?.value||'').toLowerCase();
+  const durum=document.getElementById('tdg-durum')?.value||'';
+  items=items.filter(x=>{
+    if(q&&![x.firmaAdi,x.talepNo,x.degerlendirmeKonusu].some(f=>f?.toLowerCase().includes(q)))return false;
+    if(durum&&x.durum!==durum)return false;
+    return true;
+  });
+  items.sort((a,b)=>(b.duzenlenmeTarihi||'').localeCompare(a.duzenlenmeTarihi||''));
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Değerlendirme bulunamadı. Satın alma talebini onaylayınca otomatik oluşturulur.</p></div>';return;}
+
+  container.innerHTML=items.map(x=>{
+    const toplam=calcTDGToplam(x);
+    const guve=toplam>=70;
+    const durumBadge=x.durum==='Tamamlandı'?'badge-green':'badge-amber';
+    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid ${guve&&x.durum==='Tamamlandı'?'rgba(22,163,74,.4)':'var(--border)'};transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:8px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;font-size:18px">⭐</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${x.firmaAdi||'-'}</div>
+            <div style="font-size:11px;color:var(--text3)">${x.talepNo||''} · ${formatDate(x.duzenlenmeTarihi)}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:700;color:${x.durum==='Tamamlandı'?(guve?'var(--success)':'var(--danger)'):'var(--text3)'}">${x.durum==='Tamamlandı'?toplam:'-'}</div>
+          <div style="font-size:10px;color:var(--text3)">/ 100 puan</div>
+          ${x.durum==='Tamamlandı'?`<span class="badge ${guve?'badge-green':'badge-red'}" style="font-size:10px">${guve?'Güvenilir':'Yetersiz'}</span>`:''}
+        </div>
+      </div>
+      <!-- Aşama göstergesi (2. aşama) -->
+      <div style="padding:8px 16px;background:rgba(0,0,0,.15);display:flex;align-items:center;gap:0">
+        ${['Talep','Onay','Tdr.Değ.','Ref.Değ.','Tamam'].map((s,i)=>{
+          const aktif=i<=2||(x.durum==='Tamamlandı'&&i<=4);
+          const simdiki=x.durum==='Tamamlandı'&&i===3;
+          return `<div style="display:flex;align-items:center;flex:1">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div style="width:18px;height:18px;border-radius:50%;background:${aktif?'var(--accent)':simdiki?'var(--warn)':'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700">${aktif?'✓':i+1}</div>
+              <div style="font-size:8px;color:${aktif?'var(--accent)':simdiki?'var(--warn)':'var(--text3)'};white-space:nowrap">${s}</div>
+            </div>
+            ${i<4?`<div style="flex:1;height:2px;background:${aktif&&i<4?'var(--accent)':'var(--border)'};margin:0 2px;margin-bottom:12px"></div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="padding:12px 16px;font-size:12px">
+        ${x.degerlendirmeKonusu?`<div style="margin-bottom:8px"><span style="color:var(--text3)">Konu: </span>${x.degerlendirmeKonusu}</div>`:''}
+        ${x.durum==='Tamamlandı'?`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px"><span style="color:var(--text3)">A-Performans: </span><b>${Number(x.a1||0)+Number(x.a2||0)+Number(x.a3||0)}/15</b></div>
+          <div style="padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px"><span style="color:var(--text3)">B-Tetkik: </span><b>${Number(x.b1||0)+Number(x.b2||0)+Number(x.b3||0)}/15</b></div>
+          <div style="padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px"><span style="color:var(--text3)">C-Kalite: </span><b>${Number(x.c1||0)+Number(x.c2||0)}/30</b></div>
+          <div style="padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px"><span style="color:var(--text3)">D-Teslimat: </span><b>${Number(x.d1||0)}/40</b></div>
+        </div>`:'<div style="color:var(--text3);font-size:12px">Değerlendirme bekleniyor...</div>'}
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px">
+        ${x.durum==='Tamamlandı'?`<button onclick="printTDGPdf('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('file-pdf',12)} PDF</button>`:''}
+        <button onclick="openTDGModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">${icon('edit-2',12)} ${x.durum==='Tamamlandı'?'Düzenle':'Değerlendiri Yap'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function calcTDGToplam(x){
+  return [x.a1,x.a2,x.a3,x.b1,x.b2,x.b3,x.c1,x.c2,x.d1].reduce((s,v)=>s+Number(v||0),0);
+}
+
+let _editTDGId=null;
+function addTDGModal(){
+  if(document.getElementById('tdg-modal')) return;
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="tdg-modal" class="modal-overlay">
+    <div class="modal" style="max-width:620px">
+      <div class="modal-header"><div class="modal-title">Tedarikçi Değerlendirme</div><div class="modal-close" onclick="closeModal('tdg-modal')">${icon('x-circle',16)}</div></div>
+      <div class="modal-body" style="max-height:75vh;overflow-y:auto">
+        <div class="form-row">
+          <div class="form-group"><label>Firma Adı</label><input id="tdg-firma" type="text" readonly style="background:rgba(255,255,255,.05)"></div>
+          <div class="form-group"><label>Düzenleme Tarihi</label><input id="tdg-tarih" type="date"></div>
+        </div>
+        <div class="form-group"><label>Değerlendirme Konusu</label><input id="tdg-konu" type="text" placeholder="Kalibrasyon hizmeti vb."></div>
+
+        <div style="margin:16px 0 8px;padding:8px 12px;background:rgba(79,107,240,.1);border-radius:6px;font-weight:700;font-size:13px;color:var(--primary)">A - TEDARİKÇİ PERFORMANS PUANI</div>
+        ${tdgKriterRow('tdg-a1','Tedarikçinin alım sürecindeki davranışları',0,5)}
+        ${tdgKriterRow('tdg-a2','Değişen teknolojiye verdiği önem',0,5)}
+        ${tdgKriterRow('tdg-a3','Müşteri memnuniyetine gösterdiği duyarlılık',0,5)}
+
+        <div style="margin:16px 0 8px;padding:8px 12px;background:rgba(0,212,170,.1);border-radius:6px;font-weight:700;font-size:13px;color:var(--accent)">B - TEDARİKÇİ TETKİK PUANI</div>
+        ${tdgKriterRow('tdg-b1','Yapmış olduğu işe verdiği önem',0,5)}
+        ${tdgKriterRow('tdg-b2','Tedarikçi hakkındaki referanslar',0,5)}
+        ${tdgKriterRow('tdg-b3','Tedarikçinin firma üzerinde bıraktığı izlenim',0,5)}
+
+        <div style="margin:16px 0 8px;padding:8px 12px;background:rgba(245,158,11,.1);border-radius:6px;font-weight:700;font-size:13px;color:var(--warn)">C - KALİTE UYGUNLUK PUANI</div>
+        ${tdgKriterRow('tdg-c1','Teklif ve Teknik Şartnameye uygunluk',0,15)}
+        ${tdgKriterRow('tdg-c2','Kalite Belgesi (ISO-TSE EN 17025-17043-ISO 9001)',0,15)}
+
+        <div style="margin:16px 0 8px;padding:8px 12px;background:rgba(220,38,38,.1);border-radius:6px;font-weight:700;font-size:13px;color:var(--danger)">D - TESLİMAT PUANI</div>
+        ${tdgKriterRow('tdg-d1','Zamanında teslim (Geciken hergün için 2 puan düşülür)',0,40)}
+
+        <div style="margin-top:16px;padding:12px;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-weight:700;font-size:14px">TOPLAM PUAN</span>
+          <div style="text-align:right">
+            <span id="tdg-toplam-display" style="font-size:28px;font-weight:700;color:var(--accent)">0</span>
+            <span style="color:var(--text3);font-size:14px"> / 100</span>
+            <div id="tdg-sonuc-label" style="font-size:12px;color:var(--text3)"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:8px;background:rgba(0,0,0,.1);border-radius:6px;font-size:11px;color:var(--text3)">
+          ℹ️ 70+ puan → Güvenilir Tedarikçi. Puanlama satın almayı talep eden ve gerçekleştiren birim tarafından yapılır.
+        </div>
+        <div class="form-group" style="margin-top:12px"><label>Değerlendirmeyi Yapan</label>
+          <select id="tdg-yapan">
+            <option value="">Seçiniz...</option>
+            ${(DB.get('personeller')||[]).map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad} - ${p.gorev||''}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('tdg-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveTDG()">Kaydet &amp; Tamamla</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function tdgKriterRow(id,label,min,max){
+  const steps=[];
+  for(let i=min;i<=max;i++) steps.push(i);
+  return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.05);border-radius:6px;margin-bottom:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:500;color:var(--text1)">${label}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">Max: ${max}</span>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px 10px;font-size:16px;font-weight:700;min-width:44px;text-align:center" id="${id}-disp">0</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button onclick="tdgAdj('${id}',${min},${max},-1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:rgba(220,38,38,.1);color:#ef4444;cursor:pointer;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center">−</button>
+      <div style="flex:1;position:relative;height:6px;background:var(--border);border-radius:3px;cursor:pointer" onclick="tdgClick(event,'${id}',${min},${max})">
+        <div id="${id}-bar" style="position:absolute;left:0;top:0;height:100%;width:0%;border-radius:3px;background:var(--accent);transition:width .2s"></div>
+      </div>
+      <button onclick="tdgAdj('${id}',${min},${max},1)" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:rgba(0,212,170,.1);color:var(--accent);cursor:pointer;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center">+</button>
+    </div>
+    <input type="hidden" id="${id}" value="0">
+  </div>`;
+}
+
+function tdgAdj(id,min,max,delta){
+  const inp=document.getElementById(id);
+  if(!inp)return;
+  let v=Math.min(max,Math.max(min,Number(inp.value||0)+delta));
+  inp.value=v;
+  tdgUpdateRow(id,min,max,v);
+  updateTDGToplam();
+}
+
+function tdgClick(e,id,min,max){
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pct=(e.clientX-rect.left)/rect.width;
+  const v=Math.round(pct*(max-min))+min;
+  const inp=document.getElementById(id);
+  if(inp){inp.value=v;tdgUpdateRow(id,min,max,v);updateTDGToplam();}
+}
+
+function tdgUpdateRow(id,min,max,v){
+  const disp=document.getElementById(id+'-disp');
+  const bar=document.getElementById(id+'-bar');
+  if(disp) disp.textContent=v;
+  if(bar){
+    const pct=max>0?((v-min)/(max-min)*100):0;
+    bar.style.width=pct+'%';
+    bar.style.background=pct>=70?'var(--success)':pct>=40?'var(--warn)':'var(--accent)';
+  }
+}
+
+
+function updateTDGToplam(){
+  const maxlar={a1:5,a2:5,a3:5,b1:5,b2:5,b3:5,c1:15,c2:15,d1:40};
+  const ids=['tdg-a1','tdg-a2','tdg-a3','tdg-b1','tdg-b2','tdg-b3','tdg-c1','tdg-c2','tdg-d1'];
+  const t=ids.reduce((s,id)=>{
+    const key=id.replace('tdg-','');
+    const v=Math.min(maxlar[key]||0,Math.max(0,Number(document.getElementById(id)?.value||0)));
+    return s+v;
+  },0);
+  const el=document.getElementById('tdg-toplam-display');
+  const lbl=document.getElementById('tdg-sonuc-label');
+  if(el){ el.textContent=t; el.style.color=t>=70?'var(--success)':t>=50?'var(--warn)':'var(--danger)'; }
+  if(lbl) lbl.textContent=t>=70?'✅ Güvenilir Tedarikçi':t>=50?'⚠️ Şartlı':'❌ Güvenilir Değil';
+}
+
+function openTDGModal(id){
+  _editTDGId=id;
+  const x=(DB.get('tedDegerlendirme')||[]).find(x=>x.id===id);if(!x)return;
+  document.getElementById('tdg-firma').value=x.firmaAdi||'';
+  document.getElementById('tdg-tarih').value=x.duzenlenmeTarihi||today();
+  document.getElementById('tdg-konu').value=x.degerlendirmeKonusu||'';
+  document.getElementById('tdg-yapan').value=x.yapan||'';
+  const maxMap={a1:5,a2:5,a3:5,b1:5,b2:5,b3:5,c1:15,c2:15,d1:40};
+  ['a1','a2','a3','b1','b2','b3','c1','c2','d1'].forEach(k=>{
+    const el=document.getElementById('tdg-'+k);
+    if(el){ el.value=x[k]||0; tdgUpdateRow('tdg-'+k,0,maxMap[k]||0,Number(x[k]||0)); }
+  });
+  updateTDGToplam();
+  openModal('tdg-modal');
+}
+
+function saveTDG(){
+  const items=DB.get('tedDegerlendirme')||[];
+  const i=items.findIndex(x=>x.id===_editTDGId);if(i<0)return;
+  const getV=id=>Math.max(0,Number(document.getElementById(id)?.value||0));
+  items[i]={...items[i],
+    duzenlenmeTarihi:document.getElementById('tdg-tarih').value,
+    degerlendirmeKonusu:document.getElementById('tdg-konu').value,
+    yapan:document.getElementById('tdg-yapan').value,
+    a1:getV('tdg-a1'),a2:getV('tdg-a2'),a3:getV('tdg-a3'),
+    b1:getV('tdg-b1'),b2:getV('tdg-b2'),b3:getV('tdg-b3'),
+    c1:getV('tdg-c1'),c2:getV('tdg-c2'),
+    d1:getV('tdg-d1'),
+    durum:'Tamamlandı',
+    tamamlanmaTarihi:today()
+  };
+  // SAT kaydını da güncelle
+  const satItems=DB.get('satinAlmaTalep')||[];
+  const si=satItems.findIndex(x=>x.id===items[i].satId);
+  if(si>=0){ satItems[si].durum='Tamamlandı'; DB.set('satinAlmaTalep',satItems); }
+  DB.set('tedDegerlendirme',items);
+  closeModal('tdg-modal');
+  const toplam=calcTDGToplam(items[i]);
+  if(toplam<70){
+    // 70 altı uyarı
+    setTimeout(()=>{
+      if(confirm('⚠️ Tedarikçi değerlendirme puanı '+toplam+'/100 — 70 puanın altında!\n\nBu tedarikçi GÜVENİLİR DEĞİL olarak işaretlendi.\n\nOnaylı Tedarikçi listesinden çıkarmak ister misiniz?')){
+        const tedItems=DB.get('tedarikci')||[];
+        const ti=tedItems.findIndex(t=>t.firma===items[i].firmaAdi);
+        if(ti>=0){
+          tedItems.splice(ti,1);
+          DB.set('tedarikci',tedItems);
+          toast('Tedarikçi onaylı listesinden çıkarıldı','warn');
+        } else {
+          toast('Tedarikçi listede bulunamadı','warn');
+        }
+      }
+    },200);
+  } else {
+    toast('Değerlendirme tamamlandı ✅','success');
+    // Referans cihaz değerlendirme modalını aç
+    setTimeout(()=>acikRefCihazDeg(items[i].satId, items[i].id),400);
+  }
+  if(document.getElementById('sat-cards')) renderSATCards();
+  else if(document.getElementById('tdg-cards')) renderTDGCards();
+}
+
+function printTDGPdf(id){
+  const x=(DB.get('tedDegerlendirme')||[]).find(x=>x.id===id);if(!x)return;
+  const s=DB.get('settings')||{};
+  const firma=s.firmName||'';
+  const formNo=s.tdgFormNo||'AKFG429';
+  const revNo=s.tdgRevNo||'04';
+  const revTar=s.tdgRevTar?formatDate(s.tdgRevTar):'--.--.----';
+  const toplam=calcTDGToplam(x);
+  const guve=toplam>=70;
+
+  const kriterler=[
+    {grup:'A - TEDARİKÇİ PERFORMANS PUANI',items:[
+      {label:'Tedarikçinin alım sürecindeki davranışları',max:5,val:x.a1||0},
+      {label:'Değişen teknolojiye verdiği önem',max:5,val:x.a2||0},
+      {label:'Müşteri memnuniyetine gösterdiği duyarlılık',max:5,val:x.a3||0}
+    ]},
+    {grup:'B - TEDARİKÇİ TETKİK PUANI',items:[
+      {label:'Yapmış olduğu işe verdiği önem',max:5,val:x.b1||0},
+      {label:'Tedarikçi hakkındaki referanslar',max:5,val:x.b2||0},
+      {label:'Tedarikçinin firma üzerinde bıraktığı izlenim',max:5,val:x.b3||0}
+    ]},
+    {grup:'C - KALİTE UYGUNLUK PUANI',items:[
+      {label:'Teklif ve Teknik Şartnameye uygunluk',max:15,val:x.c1||0},
+      {label:'Kalite Belgesi (ISO-TSE EN 17025-17043-ISO 9001)',max:15,val:x.c2||0}
+    ]},
+    {grup:'D - TESLİMAT PUANI',items:[
+      {label:'Zamanında teslim (Geciken hergün için 2 puan düşülür)',max:40,val:x.d1||0}
+    ]}
+  ];
+
+  const rows=kriterler.map(g=>{
+    const grupTop=g.items.reduce((s,i)=>s+Number(i.val),0);
+    const grupMax=g.items.reduce((s,i)=>s+Number(i.max),0);
+    return `<tr style="background:#1e293b;color:#fff"><td colspan="3" style="padding:6px 8px;font-weight:700;font-size:11px">${g.grup}</td><td style="text-align:center;padding:6px 8px;font-weight:700">${grupTop}/${grupMax}</td></tr>`+
+      g.items.map(item=>`<tr><td style="padding:5px 8px;padding-left:20px">${item.label}</td><td style="text-align:center;border:1px solid #ccc">0 - ${item.max}</td><td style="text-align:center;border:1px solid #ccc;font-weight:700">${item.val}</td><td></td></tr>`).join('');
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${formNo} - Tedarikçi Değerlendirme</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}
+.header-table{width:100%;border-collapse:collapse;border:1px solid #000;margin-bottom:12px}
+.header-table td{border:1px solid #000;padding:6px 10px;vertical-align:middle}
+.title{font-size:13px;font-weight:700;text-align:center}
+table{width:100%;border-collapse:collapse;margin-bottom:14px}
+th{background:#1e293b;color:#fff;padding:6px 8px;border:1px solid #555;text-align:left}
+td{padding:5px 8px;border:1px solid #ccc}
+.info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.info-box{border:1px solid #ccc;padding:8px;border-radius:4px}
+.label{font-size:9px;color:#666;margin-bottom:2px}
+.value{font-size:11px;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:2px}
+.onay-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:14px;border:1px solid #ccc;padding:12px;border-radius:4px}
+.imza-alan{border-top:1px solid #333;margin-top:30px;padding-top:4px;text-align:center;font-size:10px}
+.footer{margin-top:12px;border-top:1px solid #ccc;padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#666}
+@media print{body{padding:10px}}</style></head><body>
+<table class="header-table"><tr>
+  <td style="width:25%;font-weight:700;font-size:13px">${firma}</td>
+  <td class="title">TEDARİKÇİ DEĞERLENDİRME FORMU</td>
+  <td style="width:25%;font-size:10px">
+    <div style="display:flex;justify-content:space-between"><span>Form No:</span><b>${formNo}</b></div>
+    <div style="display:flex;justify-content:space-between"><span>Rev. No:</span><b>${revNo}</b></div>
+    <div style="display:flex;justify-content:space-between"><span>Rev. Tar.:</span><b>${revTar}</b></div>
+  </td>
+</tr></table>
+<div class="info-grid">
+  <div class="info-box"><div class="label">FİRMA ADI</div><div class="value">${x.firmaAdi||'-'}</div></div>
+  <div class="info-box"><div class="label">DEĞERLENDİRME KONUSU</div><div class="value">${x.degerlendirmeKonusu||'-'}</div></div>
+  <div class="info-box"><div class="label">DÜZENLEME TARİHİ</div><div class="value">${formatDate(x.duzenlenmeTarihi)||'-'}</div></div>
+</div>
+<table><thead><tr><th>PUANLAMA KRİTERLERİ</th><th style="width:80px;text-align:center">KRİTER PUANI</th><th style="width:80px;text-align:center">VERİLEN PUAN</th><th style="width:100px;text-align:center">GRUP TOPLAMI</th></tr></thead>
+<tbody>${rows}
+<tr style="background:#0f172a;color:#fff"><td colspan="2" style="padding:8px;font-weight:700">TOPLAM PUAN</td><td colspan="2" style="text-align:center;font-size:16px;font-weight:700;color:${guve?'#4ade80':'#f87171'}">${toplam} / 61</td></tr>
+</tbody></table>
+<div style="padding:8px;border:1px solid #ccc;font-size:10px;margin-bottom:14px">
+  <div>• Puanlama satın almayı talep eden ve gerçekleştiren birim tarafından yapılır.</div>
+  <div>• Tedarikçi değerlendirme puanı 70 ve üzeri olan tedarikçiler güvenilir tedarikçidir ve alımlar bu tedarikçilerden yapılır.</div>
+  <div style="font-weight:700;margin-top:4px;color:${guve?'#16a34a':'#dc2626'}">SONUÇ: ${guve?'✅ GÜVENİLİR TEDARİKÇİ — Alım yapılabilir':'❌ GÜVENİLİR DEĞİL — Alım yapılamaz'}</div>
+</div>
+<div class="onay-grid">
+  <div><div style="font-weight:700;font-size:11px;margin-bottom:8px">DEĞERLENDİRMEYİ YAPAN</div>
+    <div style="font-size:11px">${x.yapan||''}</div>
+    <div class="imza-alan">Adı Soyadı, İmza / Tarih: ${formatDate(x.tamamlanmaTarihi)||''}</div></div>
+  <div><div style="font-weight:700;font-size:11px;margin-bottom:8px">ONAY</div>
+    <div class="imza-alan">Adı Soyadı, İmza / Tarih:</div></div>
+</div>
+<div class="footer"><span>${firma}</span><span>${formNo} | Rev:${revNo} | ${revTar}</span></div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
+  const w=window.open('','_blank','width=900,height=700');
+  w.document.write(html); w.document.close();
+}
+
+
+/* ===== REFERANS CİHAZ KALİBRASYON SONRASI DEĞERLENDİRME ===== */
+
+let _editRCDId=null;
+let _rcdDosyalar=[];
+
+function acikRefCihazDeg(satId, tdgId){
+  const items=DB.get('refCihazDeg')||[];
+  let rec=items.find(x=>x.satId===satId);
+  if(!rec){
+    const sat=(DB.get('satinAlmaTalep')||[]).find(x=>x.id===satId)||{};
+    const tdg=(DB.get('tedDegerlendirme')||[]).find(x=>x.id===tdgId)||{};
+    rec={
+      id:'rcd_'+Date.now(),
+      satId, tdgId,
+      talepNo:sat.talepNo||'',
+      firmaAdi:sat.tedarikci||'',
+      degerlendirmeTarihi:today(),
+      durum:'Bekliyor',
+      // Cihaz bilgileri
+      marka:'', model:'', seriNo:'', demirbasNo:'',
+      kalFirma:sat.tedarikci||'',
+      kalTarihi:'', etiketNo:'',
+      // 7 soru (E/H/-)
+      s1:'', s2:'', s3:'', s4:'', s5:'', s6:'', s7:'',
+      dusunceler:'',
+      yapan:'',
+      dosyalar:[]
+    };
+    items.push(rec);
+    DB.set('refCihazDeg',items);
+  }
+  _rcdDosyalar=JSON.parse(JSON.stringify(rec.dosyalar||[]));
+  if(!document.getElementById('rcd-modal')) buildRCDModal();
+  _editRCDId=rec.id;
+  fillRCDModal(rec);
+  openModal('rcd-modal');
+}
+
+function buildRCDModal(){
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="rcd-modal" class="modal-overlay">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <div class="modal-title">Referans Cihaz Kalibrasyon Sonrası Değerlendirme</div>
+        <div class="modal-close" onclick="closeModal('rcd-modal')">${icon('x-circle',16)}</div>
+      </div>
+      <!-- Sekmeler -->
+      <div style="display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--bg2)">
+        <button id="rcd-tab-deg" onclick="switchRCDTab('deg')" style="padding:10px 18px;border:none;background:transparent;color:var(--accent);font-weight:600;font-size:13px;border-bottom:2px solid var(--accent);cursor:pointer">📋 Değerlendirme</button>
+        <button id="rcd-tab-dos" onclick="switchRCDTab('dos')" style="padding:10px 18px;border:none;background:transparent;color:var(--text3);font-size:13px;cursor:pointer">📎 Ölçüm Dosyaları</button>
+      </div>
+      <!-- Değerlendirme Sekmesi -->
+      <div id="rcd-panel-deg" class="modal-body" style="max-height:65vh;overflow-y:auto">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin-bottom:10px">REFERANS CİHAZ BİLGİLERİ</div>
+        <div class="form-row">
+          <div class="form-group"><label>Marka</label><input id="rcd-marka" type="text"></div>
+          <div class="form-group"><label>Model</label><input id="rcd-model" type="text"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Seri No</label><input id="rcd-serino" type="text"></div>
+          <div class="form-group"><label>Demirbaş No</label><input id="rcd-demno" type="text"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Kalibrasyonu Yapan Firma</label><input id="rcd-kalfirma" type="text"></div>
+          <div class="form-group"><label>Kalibrasyon Tarihi</label><input id="rcd-kaltar" type="date"></div>
+        </div>
+        <div class="form-group"><label>Kalibrasyon Etiket No</label><input id="rcd-etiket" type="text"></div>
+
+        <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.5px;margin:16px 0 10px">DEĞERLENDİRME SORULARI</div>
+        ${rcdSoruRow('rcd-s1','1. Referans cihazın dış görünüşünde problem var mı?')}
+        ${rcdSoruRow('rcd-s2','2. Referans cihaz kalibrasyon sonrası sorunsuz çalışıyor mu?')}
+        ${rcdSoruRow('rcd-s3','3. Referans cihaz ve firma bilgileri sertifikada doğru yazılmış mı?')}
+        ${rcdSoruRow('rcd-s4','4. Kalibrasyon sırasında istenilen değerlerde ölçümler yapılmış mı?')}
+        ${rcdSoruRow('rcd-s5','5. Belirsizlik değerleri firma beyanı ile uyuşuyor mu?')}
+        ${rcdSoruRow('rcd-s6','6. Ölçüm sonuçlarında uygunsuzluk var mı?')}
+        ${rcdSoruRow('rcd-s7','7. Kalibrasyon sonrası referans cihaz kullanıma uygun mu?')}
+
+        <div class="form-group" style="margin-top:12px"><label>Düşünceler / Notlar</label><textarea id="rcd-dusunceler" style="min-height:70px"></textarea></div>
+        <div class="form-row">
+          <div class="form-group"><label>Değerlendirmeyi Yapan</label>
+            <select id="rcd-yapan">
+              <option value="">Seçiniz...</option>
+              ${(DB.get('personeller')||[]).map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad} - ${p.gorev||''}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label>Değerlendirme Tarihi</label><input id="rcd-tarih" type="date"></div>
+        </div>
+      </div>
+      <!-- Dosyalar Sekmesi -->
+      <div id="rcd-panel-dos" class="modal-body" style="max-height:65vh;overflow-y:auto;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:13px;font-weight:600">Ölçüm Dosyaları (PDF / Excel)</div>
+          <button onclick="uploadRCDFile()" style="padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">+ Dosya Ekle</button>
+        </div>
+        <div id="rcd-dosya-liste"></div>
+        <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,.1);border-radius:6px;font-size:11px;color:var(--text3)">
+          ℹ️ PDF ve Excel dosyaları yüklenebilir. Kalibrasyon sertifikası ve ölçüm sonuçlarını buraya ekleyebilirsiniz.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('rcd-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveRCD()">💾 Kaydet &amp; Tamamla</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function rcdSoruRow(id,label){
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:4px;background:rgba(0,0,0,.05);border-radius:6px;border:1px solid var(--border)">
+    <div style="font-size:12px;flex:1">${label}</div>
+    <div style="display:flex;gap:6px;margin-left:12px">
+      <button onclick="setRCDSoru('${id}','E')" id="${id}-E" style="padding:4px 12px;border-radius:5px;border:2px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">EVET</button>
+      <button onclick="setRCDSoru('${id}','H')" id="${id}-H" style="padding:4px 12px;border-radius:5px;border:2px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600;transition:all .15s">HAYIR</button>
+    </div>
+    <input type="hidden" id="${id}" value="">
+  </div>`;
+}
+
+function setRCDSoru(id,val){
+  document.getElementById(id).value=val;
+  const eBtn=document.getElementById(id+'-E');
+  const hBtn=document.getElementById(id+'-H');
+  if(eBtn){ eBtn.style.background=val==='E'?'rgba(22,163,74,.2)':'transparent'; eBtn.style.borderColor=val==='E'?'#16a34a':'var(--border)'; eBtn.style.color=val==='E'?'#16a34a':'var(--text2)'; }
+  if(hBtn){ hBtn.style.background=val==='H'?'rgba(220,38,38,.2)':'transparent'; hBtn.style.borderColor=val==='H'?'#ef4444':'var(--border)'; hBtn.style.color=val==='H'?'#ef4444':'var(--text2)'; }
+}
+
+function switchRCDTab(tab){
+  document.getElementById('rcd-panel-deg').style.display=tab==='deg'?'block':'none';
+  document.getElementById('rcd-panel-dos').style.display=tab==='dos'?'block':'none';
+  document.getElementById('rcd-tab-deg').style.color=tab==='deg'?'var(--accent)':'var(--text3)';
+  document.getElementById('rcd-tab-deg').style.borderBottom=tab==='deg'?'2px solid var(--accent)':'2px solid transparent';
+  document.getElementById('rcd-tab-dos').style.color=tab==='dos'?'var(--accent)':'var(--text3)';
+  document.getElementById('rcd-tab-dos').style.borderBottom=tab==='dos'?'2px solid var(--accent)':'2px solid transparent';
+  if(tab==='dos') renderRCDDosyalar();
+}
+
+function fillRCDModal(rec){
+  document.getElementById('rcd-marka').value=rec.marka||'';
+  document.getElementById('rcd-model').value=rec.model||'';
+  document.getElementById('rcd-serino').value=rec.seriNo||'';
+  document.getElementById('rcd-demno').value=rec.demirbasNo||'';
+  document.getElementById('rcd-kalfirma').value=rec.kalFirma||'';
+  document.getElementById('rcd-kaltar').value=rec.kalTarihi||'';
+  document.getElementById('rcd-etiket').value=rec.etiketNo||'';
+  document.getElementById('rcd-dusunceler').value=rec.dusunceler||'';
+  document.getElementById('rcd-yapan').value=rec.yapan||'';
+  document.getElementById('rcd-tarih').value=rec.degerlendirmeTarihi||today();
+  ['s1','s2','s3','s4','s5','s6','s7'].forEach(s=>{
+    const v=rec[s]||'';
+    document.getElementById('rcd-'+s).value=v;
+    if(v) setRCDSoru('rcd-'+s,v);
+  });
+  // Tab sıfırla
+  switchRCDTab('deg');
+}
+
+function uploadRCDFile(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='.pdf,.xlsx,.xls,.csv';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    try{document.body.removeChild(inp);}catch(err){}
+    Array.from(e.target.files||[]).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        _rcdDosyalar.push({
+          id:'rdos_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+          name:file.name, size:file.size,
+          type:file.type, data:ev.target.result,
+          tarih:today()
+        });
+        renderRCDDosyalar();
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  inp.click();
+}
+
+function renderRCDDosyalar(){
+  const el=document.getElementById('rcd-dosya-liste');if(!el)return;
+  if(!_rcdDosyalar.length){
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">Henüz dosya eklenmedi</div>';return;
+  }
+  el.innerHTML=_rcdDosyalar.map((d,i)=>{
+    const isPdf=d.name.toLowerCase().endsWith('.pdf');
+    const icon_=isPdf?'📄':'📊';
+    const sizeKb=Math.round(d.size/1024);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,0,0,.05);border-radius:6px;border:1px solid var(--border);margin-bottom:6px">
+      <span style="font-size:20px">${icon_}</span>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${d.name}</div>
+        <div style="font-size:11px;color:var(--text3)">${sizeKb} KB · ${formatDate(d.tarih)}</div>
+      </div>
+      <button onclick="previewRCDFile(${i})" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px">Önizle</button>
+      <button onclick="downloadRCDFile(${i})" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px">İndir</button>
+      <button onclick="_rcdDosyalar.splice(${i},1);renderRCDDosyalar()" style="padding:4px 8px;border-radius:5px;border:1px solid rgba(220,38,38,.3);background:transparent;color:#ef4444;cursor:pointer;font-size:11px">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function previewRCDFile(i){
+  const d=_rcdDosyalar[i];if(!d)return;
+  const w=window.open('');
+  if(d.name.toLowerCase().endsWith('.pdf')){
+    w.document.write(`<iframe src="${d.data}" style="width:100%;height:100vh;border:none"></iframe>`);
+  } else {
+    w.document.write(`<p style="font-family:sans-serif;padding:20px">Excel önizleme desteklenmiyor. Lütfen indirin.</p>`);
+    w.document.write(`<a href="${d.data}" download="${d.name}" style="font-family:sans-serif;padding:10px 20px;background:#4f6bf0;color:#fff;border-radius:6px;text-decoration:none">İndir</a>`);
+  }
+}
+
+function downloadRCDFile(i){
+  const d=_rcdDosyalar[i];if(!d)return;
+  const a=document.createElement('a');
+  a.href=d.data; a.download=d.name; a.click();
+}
+
+function saveRCD(){
+  const items=DB.get('refCihazDeg')||[];
+  const i=items.findIndex(x=>x.id===_editRCDId);if(i<0)return;
+  const getVal=id=>document.getElementById(id)?.value||'';
+  items[i]={...items[i],
+    marka:getVal('rcd-marka'), model:getVal('rcd-model'),
+    seriNo:getVal('rcd-serino'), demirbasNo:getVal('rcd-demno'),
+    kalFirma:getVal('rcd-kalfirma'), kalTarihi:getVal('rcd-kaltar'),
+    etiketNo:getVal('rcd-etiket'), dusunceler:getVal('rcd-dusunceler'),
+    yapan:getVal('rcd-yapan'), degerlendirmeTarihi:getVal('rcd-tarih'),
+    s1:getVal('rcd-s1'),s2:getVal('rcd-s2'),s3:getVal('rcd-s3'),
+    s4:getVal('rcd-s4'),s5:getVal('rcd-s5'),s6:getVal('rcd-s6'),s7:getVal('rcd-s7'),
+    dosyalar:JSON.parse(JSON.stringify(_rcdDosyalar)),
+    durum:'Tamamlandı', tamamlanmaTarihi:today()
+  };
+  // SAT ve TDG kayıtlarını tamamlandı yap
+  const satItems=DB.get('satinAlmaTalep')||[];
+  const si=satItems.findIndex(x=>x.id===items[i].satId);
+  if(si>=0){ satItems[si].durum='Tamamlandı'; DB.set('satinAlmaTalep',satItems); }
+  DB.set('refCihazDeg',items);
+  closeModal('rcd-modal');
+  toast('Referans cihaz değerlendirmesi tamamlandı ✅','success');
+  if(document.getElementById('sat-cards')) renderSATCards();
+  else if(document.getElementById('tdg-cards')) renderTDGCards();
+}
+
+function renderTedarikci(){
+  if(!canView('satinalma')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
+  const c=document.getElementById('content');
+  c.innerHTML=`<div class="page">
+    <div class="section-header">
+      <div class="section-title">Onaylı Tedarikçiler</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="printTedPdf()">${icon('file-pdf',14)} PDF Çıktı Al</button>
+        ${canEdit('satinalma')?`<button class="btn btn-primary" onclick="openTedarikciModal(null)">${icon('plus',14)} Tedarikçi Ekle</button>`:`<button class="btn btn-ghost" disabled>${icon('plus',14)} Ekle</button>`}
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ted-search" type="text" placeholder="Firma, ürün/hizmet, yetkili ara..." oninput="renderTedarikciCards()">
+      </div>
+      <select class="tb-select" id="ted-puan" onchange="renderTedarikciCards()">
+        <option value="">Tüm Puanlar</option>
+        <option value="5">5 - Mükemmel</option>
+        <option value="4">4 - İyi</option>
+        <option value="3">3 - Orta</option>
+        <option value="2">2 - Zayıf</option>
+        <option value="1">1 - Yetersiz</option>
+      </select>
+    </div>
+    <div id="ted-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:8px"></div>
+  </div>`;
+  addTedarikciModal();
+  renderTedarikciCards();
+}
+
+function renderTedarikciCards(){
+  const container=document.getElementById('ted-cards');if(!container)return;
+  let items=DB.get('tedarikci')||[];
+  const q=(document.getElementById('ted-search')?.value||'').toLowerCase();
+  const puan=document.getElementById('ted-puan')?.value||'';
+  items=items.filter(x=>{
+    if(q&&!['firma','urunHizmet','yetkili','adres','tel','mail'].some(k=>x[k]?.toLowerCase().includes(q)))return false;
+    if(puan&&String(x.puan)!==puan)return false;
+    return true;
+  });
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Tedarikçi bulunamadı</p></div>';return;}
+  
+  container.innerHTML=items.map(x=>`
+    <div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:40px;height:40px;border-radius:10px;background:rgba(79,107,240,.15);display:flex;align-items:center;justify-content:center;font-size:18px">🏢</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${x.firma||'-'}</div>
+            <div style="font-size:11px;color:var(--accent);font-weight:600">${x.urunHizmet||''}</div>
+          </div>
+        </div>
+        <div style="text-align:right;min-width:80px">
+          <div style="font-size:18px;font-weight:700;color:${Number(x.puan||0)>=70?'var(--success)':Number(x.puan||0)>=40?'var(--warn)':'var(--danger)'}">${x.puan||0}</div>
+          <div style="font-size:10px;color:var(--text3)">/ 100 puan</div>
+          <div style="width:70px;height:5px;background:var(--border);border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:${x.puan||0}%;background:${Number(x.puan||0)>=70?'var(--success)':Number(x.puan||0)>=40?'var(--warn)':'var(--danger)'};border-radius:3px"></div></div>
+        </div>
+      </div>
+      <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;font-size:12px">
+        ${x.yetkili?`<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--text3);width:60px;flex-shrink:0">Yetkili</span><span style="font-weight:500">${x.yetkili}</span></div>`:''}
+        ${x.tel?`<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--text3);width:60px;flex-shrink:0">Tel</span><a href="tel:${x.tel}" style="color:var(--accent)">${x.tel}</a></div>`:''}
+        ${x.mail?`<div style="display:flex;align-items:center;gap:8px"><span style="color:var(--text3);width:60px;flex-shrink:0">Mail</span><a href="mailto:${x.mail}" style="color:var(--accent)">${x.mail}</a></div>`:''}
+        ${x.adres?`<div style="display:flex;align-items:flex-start;gap:8px"><span style="color:var(--text3);width:60px;flex-shrink:0">Adres</span><span>${x.adres}</span></div>`:''}
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px">
+        <button onclick="openTedarikciModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>
+        <button onclick="deleteTedarikci('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>
+      </div>
+    </div>`).join('');
+}
+
+let _editTedId=null;
+function addTedarikciModal(){
+  if(document.getElementById('ted-modal')) return;
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="ted-modal" class="modal-overlay">
+    <div class="modal modal-lg">
+      <div class="modal-header"><div class="modal-title" id="ted-modal-title">Tedarikçi Ekle</div><div class="modal-close" onclick="closeModal('ted-modal')">${icon('x-circle',16)}</div></div>
+      <div class="modal-body">
+        <div class="form-group"><label>Ürün / Hizmet</label><input id="t-urun" type="text" placeholder="Sağlanan ürün veya hizmet"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Firma Adı</label><input id="t-firma" type="text" placeholder="Firma adını girin"></div>
+          <div class="form-group"><label>Yetkili Kişi</label><input id="t-yetkili" type="text" placeholder="Ad Soyad"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Telefon</label><input id="t-tel" type="text" placeholder="0xxx xxx xx xx"></div>
+          <div class="form-group"><label>E-posta</label><input id="t-mail" type="email" placeholder="info@firma.com"></div>
+        </div>
+        <div class="form-group"><label>Adres</label><textarea id="t-adres" placeholder="Firma adresi..." style="min-height:70px"></textarea></div>
+        <div class="form-group"><label>Puan (0-100)</label>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+            <input type="number" id="t-puan" min="0" max="100" value="0" style="width:80px" oninput="updatePuanBar()">
+            <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+              <div id="t-puan-bar" style="height:100%;width:0%;border-radius:4px;background:var(--success);transition:width .3s,background .3s"></div>
+            </div>
+            <span id="t-puan-label" style="font-size:13px;color:var(--text3);min-width:30px">0</span>
+          </div>
+        </div>
+        <div class="form-group"><label>Notlar</label><textarea id="t-notlar" placeholder="Ek notlar..." style="min-height:60px"></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('ted-modal')">İptal</button><button class="btn btn-primary" onclick="saveTedarikci()">Kaydet</button></div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function updatePuanBar(){
+  const n=Math.min(100,Math.max(0,Number(document.getElementById('t-puan')?.value)||0));
+  const bar=document.getElementById('t-puan-bar');
+  const lbl=document.getElementById('t-puan-label');
+  if(bar){ bar.style.width=n+'%'; bar.style.background=n>=70?'var(--success)':n>=40?'var(--warn)':'var(--danger)'; }
+  if(lbl) lbl.textContent=n;
+}
+
+function openTedarikciModal(id){
+  _editTedId=id;
+  document.getElementById('ted-modal-title').textContent=id?'Tedarikçi Düzenle':'Tedarikçi Ekle';
+  if(id){
+    const x=(DB.get('tedarikci')||[]).find(x=>x.id===id);if(!x)return;
+    document.getElementById('t-urun').value=x.urunHizmet||'';
+    document.getElementById('t-firma').value=x.firma||'';
+    document.getElementById('t-yetkili').value=x.yetkili||'';
+    document.getElementById('t-tel').value=x.tel||'';
+    document.getElementById('t-mail').value=x.mail||'';
+    document.getElementById('t-adres').value=x.adres||'';
+    document.getElementById('t-notlar').value=x.notlar||'';
+    document.getElementById('t-puan').value=x.puan||0; updatePuanBar();
+  } else {
+    ['t-urun','t-firma','t-yetkili','t-tel','t-mail','t-adres','t-notlar'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('t-puan').value=0; updatePuanBar();
+  }
+  openModal('ted-modal');
+}
+
+function saveTedarikci(){
+  const firma=document.getElementById('t-firma').value.trim();
+  const urun=document.getElementById('t-urun').value.trim();
+  if(!firma||!urun){toast('Firma ve ürün/hizmet zorunlu','error');return;}
+  const items=DB.get('tedarikci')||[];
+  const data={
+    firma, urunHizmet:urun,
+    yetkili:document.getElementById('t-yetkili').value,
+    tel:document.getElementById('t-tel').value,
+    mail:document.getElementById('t-mail').value,
+    adres:document.getElementById('t-adres').value,
+    notlar:document.getElementById('t-notlar').value,
+    puan:document.getElementById('t-puan').value
+  };
+  if(_editTedId){
+    const i=items.findIndex(x=>x.id===_editTedId);
+    if(i>=0) items[i]={...items[i],...data};
+  } else {
+    data.id='ted_'+Date.now();
+    data.eklemeTarihi=today();
+    items.push(data);
+  }
+  DB.set('tedarikci',items);
+  closeModal('ted-modal');
+  toast(_editTedId?'Güncellendi':'Tedarikçi eklendi','success');
+  renderTedarikciCards();
+}
+
+
+function printTedPdf(){
+  const items=DB.get('tedarikci')||[];
+  const s=DB.get('settings')||{};
+  const firma=s.firmName||'';
+  const formNo=s.tedFormNo||'FR-SYN-001';
+  const revNo=s.tedRevNo||'00';
+  const revTar=s.tedRevTar?formatDate(s.tedRevTar):'--.--.----';
+  const tarih=new Date().toLocaleDateString('tr-TR');
+
+  const rows=items.map((x,i)=>`
+    <tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${x.urunHizmet||'-'}</td>
+      <td>${x.firma||'-'}</td>
+      <td>${x.yetkili||'-'}</td>
+      <td>${x.adres||'-'}</td>
+      <td>${x.tel||'-'}</td>
+      <td>${x.mail||'-'}</td>
+      <td style="text-align:center;font-weight:700;color:${Number(x.puan||0)>=70?'#16a34a':Number(x.puan||0)>=40?'#d97706':'#dc2626'}">${x.puan||0}</td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Onaylı Tedarikçi Listesi</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}
+.hdr{display:flex;border:1px solid #000;margin-bottom:0}.hdr-l{padding:8px 12px;border-right:1px solid #000;flex:1}
+.hdr-c{padding:8px 12px;flex:2;text-align:center;font-weight:700;font-size:13px;border-right:1px solid #000}
+.hdr-r{padding:6px 12px;font-size:10px;min-width:160px}.hdr-r div{display:flex;justify-content:space-between;gap:12px}
+table{width:100%;border-collapse:collapse;border:1px solid #000}
+th{background:#1e293b;color:#fff;padding:6px 8px;border:1px solid #555;font-size:10px;text-align:left}
+td{padding:5px 8px;border:1px solid #ccc;font-size:10px}tr:nth-child(even){background:#f8fafc}
+.ftr{margin-top:6px;display:flex;justify-content:space-between;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:4px}
+@media print{body{padding:8px}}</style></head><body>
+<div class="hdr"><div class="hdr-l"><b>${firma}</b></div>
+<div class="hdr-c">ONAYLI TEDARİKÇİ LİSTESİ</div>
+<div class="hdr-r"><div><span>Form No:</span><span>${formNo}</span></div>
+<div><span>Rev. No:</span><span>${revNo}</span></div>
+<div><span>Rev. Tar.:</span><span>${revTar}</span></div>
+<div><span>Tarih:</span><span>${tarih}</span></div></div></div>
+<table><thead><tr><th style="width:25px">#</th><th>Ürün/Hizmet</th><th>Firma</th><th>Yetkili</th><th>Adres</th><th>Tel</th><th>Mail</th><th style="width:45px">Puan</th></tr></thead>
+<tbody>${rows}</tbody></table>
+<div class="ftr"><span>Toplam: ${items.length} tedarikçi</span><span>${formNo} | Rev:${revNo} | ${revTar}</span></div>
+</body></html>`;
+
+  const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
+function deleteTedarikci(id){
+  if(!confirm('Bu tedarikçiyi silmek istediğinize emin misiniz?')) return;
+  DB.set('tedarikci',(DB.get('tedarikci')||[]).filter(x=>x.id!==id));
+  toast('Silindi','success');
+  renderTedarikciCards();
+}
+
 function renderAyarlar(){
   const u=getActiveUser();
   if(u?.rol!=='Yonetici'){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu bölüme yalnızca Yönetici erişebilir.</p></div>';return;}
@@ -2829,6 +4411,66 @@ function renderAyarlar(){
     </div>
 
     <!-- BİLDİRİM -->
+    <div class="card" style="margin-bottom:18px">
+      <div class="section-title" style="margin-bottom:4px;font-size:15px">${icon('file-text',16)} Form PDF Ayarları</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:16px">PDF çıktılarında görünecek form numarası ve revizyon bilgileri</div>
+
+      <!-- 1. Onaylı Tedarikçi Listesi -->
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:16px">📋</span>
+          <div><div style="font-size:12px;font-weight:700">Onaylı Tedarikçi Listesi</div><div style="font-size:10px;color:var(--text3)">FR-SYN-001 benzeri</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Form No</label><input id="s-ted-form-no" type="text" value="${s.tedFormNo||''}" placeholder="ör. FR-SYN-001"></div>
+          <div class="form-group"><label>Rev. No</label><input id="s-ted-rev-no" type="text" value="${s.tedRevNo||''}" placeholder="ör. 00"></div>
+          <div class="form-group"><label>Rev. Tarihi</label><input id="s-ted-rev-tar" type="date" value="${s.tedRevTar||''}"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="saveTedFormAyar()">${icon('check',13)} Kaydet</button></div>
+        </div>
+      </div>
+
+      <!-- 2. Kalibrasyon Satın Alma Talep Formu -->
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:16px">🛒</span>
+          <div><div style="font-size:12px;font-weight:700">Kalibrasyon Satın Alma Talep Formu</div><div style="font-size:10px;color:var(--text3)">AKFG422</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Form No</label><input id="s-kal-form-no" type="text" value="${s.kalFormNo||''}" placeholder="ör. AKFG422"></div>
+          <div class="form-group"><label>Rev. No</label><input id="s-kal-rev-no" type="text" value="${s.kalRevNo||''}" placeholder="ör. 00"></div>
+          <div class="form-group"><label>Rev. Tarihi</label><input id="s-kal-rev-tar" type="date" value="${s.kalRevTar||''}"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="saveKalFormAyar()">${icon('check',13)} Kaydet</button></div>
+        </div>
+      </div>
+
+      <!-- 3. Tedarikçi Değerlendirme -->
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:16px">⭐</span>
+          <div><div style="font-size:12px;font-weight:700">Tedarikçi Değerlendirme Formu</div><div style="font-size:10px;color:var(--text3)">AKFG429</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Form No</label><input id="s-tdg-form-no" type="text" value="${s.tdgFormNo||''}" placeholder="ör. AKFG429"></div>
+          <div class="form-group"><label>Rev. No</label><input id="s-tdg-rev-no" type="text" value="${s.tdgRevNo||''}" placeholder="ör. 04"></div>
+          <div class="form-group"><label>Rev. Tarihi</label><input id="s-tdg-rev-tar" type="date" value="${s.tdgRevTar||''}"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="saveTdgFormAyar()">${icon('check',13)} Kaydet</button></div>
+        </div>
+      </div>
+
+      <!-- 4. Referans Cihaz Değerlendirme -->
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:16px">🔧</span>
+          <div><div style="font-size:12px;font-weight:700">Ref. Cihaz Kal. Sonrası Değerlendirme</div><div style="font-size:10px;color:var(--text3)">AKFG794</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Form No</label><input id="s-rcd-form-no" type="text" value="${s.rcdFormNo||''}" placeholder="ör. AKFG794"></div>
+          <div class="form-group"><label>Rev. No</label><input id="s-rcd-rev-no" type="text" value="${s.rcdRevNo||''}" placeholder="ör. 01"></div>
+          <div class="form-group"><label>Rev. Tarihi</label><input id="s-rcd-rev-tar" type="date" value="${s.rcdRevTar||''}"></div>
+          <div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-primary btn-sm" onclick="saveRcdFormAyar()">${icon('check',13)} Kaydet</button></div>
+        </div>
+      </div>
+    </div>
     <div class="card" style="margin-bottom:18px">
       <div class="section-title" style="margin-bottom:18px;font-size:15px">${icon('bell',16)} Bildirim Ayarları</div>
       <div class="form-group" style="margin-bottom:14px">
@@ -2898,6 +4540,46 @@ function saveFirm(){
   document.getElementById('topbar-firm').textContent=s.firmName;
   toast('Firma adı kaydedildi','success');
 }
+
+function saveTedFormAyar(){
+  const s=DB.get('settings')||{};
+  s.tedFormNo=document.getElementById('s-ted-form-no').value.trim();
+  s.tedRevNo=document.getElementById('s-ted-rev-no').value.trim();
+  s.tedRevTar=document.getElementById('s-ted-rev-tar').value;
+  DB.set('settings',s);
+  toast('Form ayarları kaydedildi','success');
+}
+
+function saveKalFormAyar(){
+  const s=DB.get('settings')||{};
+  s.kalFormNo=document.getElementById('s-kal-form-no').value.trim();
+  s.kalRevNo=document.getElementById('s-kal-rev-no').value.trim();
+  s.kalRevTar=document.getElementById('s-kal-rev-tar').value;
+  DB.set('settings',s);
+  toast('Kalibrasyon form ayarları kaydedildi','success');
+}
+
+function saveTdgFormAyar(){
+  const s=DB.get('settings')||{};
+  s.tdgFormNo=document.getElementById('s-tdg-form-no').value.trim();
+  s.tdgRevNo=document.getElementById('s-tdg-rev-no').value.trim();
+  s.tdgRevTar=document.getElementById('s-tdg-rev-tar').value;
+  DB.set('settings',s);
+  toast('Değerlendirme form ayarları kaydedildi','success');
+}
+
+function saveRcdFormAyar(){
+  const s=DB.get('settings')||{};
+  s.rcdFormNo=document.getElementById('s-rcd-form-no').value.trim();
+  s.rcdRevNo=document.getElementById('s-rcd-rev-no').value.trim();
+  s.rcdRevTar=document.getElementById('s-rcd-rev-tar').value;
+  DB.set('settings',s);
+  toast('Referans cihaz form ayarları kaydedildi','success');
+}
+
+
+
+
 
 function saveLogo(){
   const files=getPendingFiles('logo_upload');
@@ -3111,31 +4793,30 @@ function renderUygunsuzluklar(){
     </div>
     <div class="toolbar">
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="uyg-search" type="text" placeholder="Uygunsuzluk no veya açıklama ara..." oninput="renderUygTable()">
+        <input id="uyg-search" type="text" placeholder="Uygunsuzluk no veya açıklama ara..." oninput="renderUygCards()">
       </div>
-      <select class="tb-select" id="uyg-durum" onchange="renderUygTable()">
+      <select class="tb-select" id="uyg-durum" onchange="renderUygCards()">
         <option value="">Tüm Durumlar</option>
         <option>Açık</option>
         <option>Devam Ediyor</option>
         <option>Kapatıldı</option>
       </select>
-      <select class="tb-select" id="uyg-sort" onchange="renderUygTable()">
+      <select class="tb-select" id="uyg-sort" onchange="renderUygCards()">
         <option value="tarih">Uygunsuzluk Tarihi</option>
         <option value="kapatma">Kapatma Tarihi</option>
         <option value="no">Uygunsuzluk No</option>
       </select>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Uygunsuzluk No</th><th>Açıklama</th><th>Uygunsuzluk Tarihi</th><th>Durum</th><th>Kapatma Tarihi</th><th>Dosyalar</th><th>İşlemler</th></tr></thead>
-      <tbody id="uyg-tbody"></tbody>
-    </table></div>
+    <div id="uyg-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-top:8px"></div>
   </div>`;
   addUygModal();
-  renderUygTable();
+  renderUygCards();
 }
 
-function renderUygTable(){
-  const tbody=document.getElementById('uyg-tbody');if(!tbody)return;
+function renderUygTable(){ renderUygCards(); }
+
+function renderUygCards(){
+  const container=document.getElementById('uyg-cards');if(!container)return;
   let items=DB.get('uygunsuzluklar')||[];
   const q=(document.getElementById('uyg-search')?.value||'').toLowerCase();
   const durum=document.getElementById('uyg-durum')?.value||'';
@@ -3151,29 +4832,123 @@ function renderUygTable(){
     if(sort==='no') return (a.no||'').localeCompare(b.no||'');
     return 0;
   });
-  if(!items.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><p>Uygunsuzluk bulunamadı</p></div></td></tr>`;return;}
+  if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Uygunsuzluk bulunamadı</p></div>';return;}
+  const durumColors={Açık:'#dc2626','Devam Ediyor':'#d97706',Kapatıldı:'#16a34a'};
   const durumBadge={Açık:'badge-red','Devam Ediyor':'badge-amber',Kapatıldı:'badge-green'};
-  tbody.innerHTML=items.map(x=>`<tr>
-    <td class="strong">${x.no||'-'}</td>
-    <td style="max-width:220px">${truncate(x.aciklama,50)}</td>
-    <td>${formatDate(x.tarih)}</td>
-    <td>${canEdit('uygunsuzluklar')?`<select class="tb-select" style="padding:3px 6px;font-size:11.5px" onchange="updateUygDurum('${x.id}',this.value)">
-      <option ${x.durum==='Açık'?'selected':''}>Açık</option>
-      <option ${x.durum==='Devam Ediyor'?'selected':''}>Devam Ediyor</option>
-      <option ${x.durum==='Kapatıldı'?'selected':''}>Kapatıldı</option>
-    </select>`:`<span class="badge ${durumBadge[x.durum]||'badge-gray'}">${x.durum||'-'}</span>`}</td>
-    <td>${x.durum==='Kapatıldı'?formatDate(x.kapatmaTarihi):'-'}</td>
-    <td><div class="action-btns">
-      ${canEdit('uygunsuzluklar')?`<button class="icon-btn" title="PDF Yükle" onclick="uploadUygFile('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">PDF</span></button>`:''}
-      ${x.pdfFile?`<button class="icon-btn" title="PDF Önizle" onclick="previewUygFile('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('eye',12)}</button>`:''}
-      ${canEdit('uygunsuzluklar')?`<button class="icon-btn" title="Word/Excel Yükle" onclick="uploadUygFile('${x.id}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">W/E</span></button>`:''}
-      ${x.officeFile?`<button class="icon-btn" title="Word/Excel Önizle/İndir" onclick="previewUygFile('${x.id}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('eye',12)}</button>`:''}
-    </div></td>
-    <td><div class="action-btns">
-      ${canEdit('uygunsuzluklar')?`<button class="icon-btn" title="Düzenle" onclick="openUygModal('${x.id}')">${icon('edit',13)}</button>`:''}
-      ${canEdit('uygunsuzluklar')?`<button class="icon-btn danger" title="Sil" onclick="deleteUyg('${x.id}')">${icon('trash',13)}</button>`:''}
-    </div></td>
-  </tr>`).join('');
+  container.innerHTML=items.map(x=>{
+    const files=x.files||[];
+    const fileCount=files.length;
+    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(${x.durum==='Kapatıldı'?'22,163,74':'x.durum==="Devam Ediyor"?215+","+119+","+6:220+","+38+","+38'},.15);display:flex;align-items:center;justify-content:center;font-size:16px">${x.durum==='Kapatıldı'?'✅':x.durum==='Devam Ediyor'?'🔄':'⚠️'}</div>
+          <div>
+            <div style="font-weight:700;font-size:14px">${x.no||'-'}</div>
+            <div style="font-size:11px;color:var(--text3)">${formatDate(x.tarih)}</div>
+          </div>
+        </div>
+        <span class="badge ${durumBadge[x.durum]||'badge-gray'}">${x.durum||'-'}</span>
+      </div>
+      <div style="padding:14px 16px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">${x.aciklama||'-'}</div>
+        ${x.kaplam?`<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:2px">KAPLAM</div><div style="font-size:12px;color:var(--text2)">${x.kaplam}</div></div>`:''}
+        ${x.duzelticiFailiyet?`<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:2px">DÜZELTİCİ FAALİYET</div><div style="font-size:12px;color:var(--text2)">${x.duzelticiFailiyet}</div></div>`:''}
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          ${x.sorumlu?`<div style="font-size:11.5px"><span style="color:var(--text3)">Sorumlu: </span>${x.sorumlu}</div>`:''}
+          ${x.hedefTar?`<div style="font-size:11.5px"><span style="color:var(--text3)">Hedef: </span>${formatDate(x.hedefTar)}</div>`:''}
+          ${x.kapatmaTarihi?`<div style="font-size:11.5px"><span style="color:var(--text3)">Kapatma: </span>${formatDate(x.kapatmaTarihi)}</div>`:''}
+        </div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.01)">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          ${fileCount>0?`<button onclick="showUygFiles('${x.id}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">📎 ${fileCount} dosya</button>`:'<span style="font-size:11px;color:var(--text3)">Dosya yok</span>'}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openUygModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>
+          <button onclick="deleteUyg('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function uploadUygFile(id){
+  const inp=document.createElement('input');
+  inp.type='file';
+  inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.onchange=e=>{
+    const files=Array.from(e.target.files);
+    try{document.body.removeChild(inp);}catch(e){}
+    if(!files.length) return;
+    let loaded=0;
+    files.forEach(f=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const items=DB.get('uygunsuzluklar')||[];
+        const i=items.findIndex(x=>x.id===id); if(i<0) return;
+        if(!items[i].files) items[i].files=[];
+        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
+        DB.set('uygunsuzluklar',items);
+        loaded++;
+        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderUygCards(); }
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.click();
+}
+
+function showUygFiles(id){
+  const items=DB.get('uygunsuzluklar')||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const files=x.files||[];
+  if(!files.length){toast('Dosya yok','info');return;}
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';
+  ov.style.zIndex=3000;
+  ov.innerHTML=`<div class="modal" style="max-width:480px">
+    <div class="modal-header"><div class="modal-title">📎 ${x.no} - Dosyalar</div><div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div></div>
+    <div class="modal-body" style="padding:16px">
+      ${files.map((f,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:20px">${f.type==='application/pdf'?'📄':'📊'}</span>
+          <div><div style="font-size:13px;font-weight:600">${f.name}</div><div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="icon-btn" onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" title="Önizle">👁</button>
+          <button class="icon-btn" onclick="downloadUygFile('${id}',${i})" title="İndir">⬇</button>
+          ${canEdit('uygunsuzluklar')?`<button class="icon-btn" onclick="deleteUygFile('${id}',${i});this.closest('.modal-overlay').remove();showUygFiles('${id}')" style="color:var(--danger)" title="Sil">🗑</button>`:''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+function downloadUygFile(id,idx){
+  const items=DB.get('uygunsuzluklar')||[];
+  const x=items.find(x=>x.id===id); if(!x) return;
+  const f=x.files[idx]; if(!f) return;
+  const a=document.createElement('a');
+  a.href=f.data; a.download=f.name; a.click();
+}
+
+function deleteUygFile(id,idx){
+  const items=DB.get('uygunsuzluklar')||[];
+  const i=items.findIndex(x=>x.id===id); if(i<0) return;
+  items[i].files.splice(idx,1);
+  DB.set('uygunsuzluklar',items);
+}
+
+function deleteUyg(id){
+  if(!confirm('Silmek istediğinize emin misiniz?')) return;
+  const items=(DB.get('uygunsuzluklar')||[]).filter(x=>x.id!==id);
+  DB.set('uygunsuzluklar',items);
+  toast('Silindi','success');
+  renderUygCards();
 }
 
 function updateUygDurum(id,val){
@@ -3237,7 +5012,11 @@ function addUygModal(){
   const div=document.createElement('div');
   div.innerHTML=`<div class="modal-overlay" id="uyg-modal">
     <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="uyg-modal-title">Uygunsuzluk Ekle</div><div class="modal-close" onclick="closeModal('uyg-modal')">${icon('x-circle',16)}</div></div>
-    <div class="modal-body">
+    <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
+      <div class="tab active" onclick="switchUygTab('bilgiler',this)">Bilgiler</div>
+      <div class="tab" onclick="switchUygTab('dosyalar',this)">Dosyalar</div>
+    </div>
+    <div id="uyg-tab-bilgiler" class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>Uygunsuzluk Numarası</label><input id="u-no" type="text" placeholder="ör. UYG-001"></div>
         <div class="form-group"><label>Uygunsuzluk Tarihi</label><input id="u-tarih" type="date"></div>
@@ -3247,8 +5026,22 @@ function addUygModal(){
         <div class="form-group"><label>Durum</label><select id="u-durum"><option>Açık</option><option>Devam Ediyor</option><option>Kapatıldı</option></select></div>
         <div class="form-group"><label>En Son Kapatma Tarihi</label><input id="u-kapatma" type="date"></div>
       </div>
+      <div class="form-group"><label>Kaplam (Kök Neden Analizi)</label><textarea id="u-kaplam" placeholder="Uygunsuzluğun kök nedenini açıklayın..." style="min-height:80px"></textarea></div>
+      <div class="form-group"><label>Düzeltici Faaliyet</label><textarea id="u-duzeltici" placeholder="Alınan veya planlan düzeltici faaliyetleri açıklayın..." style="min-height:80px"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Düzeltici Faaliyet Sorumlusu</label><input id="u-sorumlu" type="text" placeholder="Ad Soyad"></div>
+        <div class="form-group"><label>Hedef Tamamlanma Tarihi</label><input id="u-hedef-tar" type="date"></div>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('uyg-modal')">İptal</button><button class="btn btn-primary" onclick="saveUyg()">Kaydet</button></div>
+    </div>
+    <div id="uyg-tab-dosyalar" class="modal-body" style="display:none">
+      <div id="uyg-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div style="margin-top:16px">
+        <button onclick="uploadUygModalFile()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
+          ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
+        </button>
+      </div>
     </div>
   </div>`;
   document.getElementById('content').appendChild(div);
@@ -3265,12 +5058,20 @@ function openUygModal(id){
     document.getElementById('u-tarih').value=x.tarih||'';
     document.getElementById('u-durum').value=x.durum||'Açık';
     document.getElementById('u-kapatma').value=x.kapatmaTarihi||'';
+    document.getElementById('u-kaplam').value=x.kaplam||'';
+    document.getElementById('u-duzeltici').value=x.duzelticiFailiyet||'';
+    document.getElementById('u-sorumlu').value=x.sorumlu||'';
+    document.getElementById('u-hedef-tar').value=x.hedefTar||'';
   } else {
     document.getElementById('u-no').value='';
     document.getElementById('u-aciklama').value='';
     document.getElementById('u-tarih').value=today();
     document.getElementById('u-durum').value='Açık';
     document.getElementById('u-kapatma').value='';
+    document.getElementById('u-kaplam').value='';
+    document.getElementById('u-duzeltici').value='';
+    document.getElementById('u-sorumlu').value='';
+    document.getElementById('u-hedef-tar').value='';
   }
   openModal('uyg-modal');
 }
@@ -3281,7 +5082,11 @@ function saveUyg(){
   if(!no||!aciklama){toast('Numara ve açıklama zorunlu','error');return;}
   const items=DB.get('uygunsuzluklar')||[];
   const u=getActiveUser();
-  const data={no,aciklama,tarih:document.getElementById('u-tarih').value,durum:document.getElementById('u-durum').value,kapatmaTarihi:document.getElementById('u-kapatma').value};
+  const data={no,aciklama,tarih:document.getElementById('u-tarih').value,durum:document.getElementById('u-durum').value,kapatmaTarihi:document.getElementById('u-kapatma').value,
+    kaplam:document.getElementById('u-kaplam').value,
+    duzelticiFailiyet:document.getElementById('u-duzeltici').value,
+    sorumlu:document.getElementById('u-sorumlu').value,
+    hedefTar:document.getElementById('u-hedef-tar').value};
   if(_editUygId){
     const i=items.findIndex(x=>x.id===_editUygId);
     if(i>=0){
