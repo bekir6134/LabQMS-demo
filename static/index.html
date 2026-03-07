@@ -495,6 +495,7 @@ DB.def('pak',[]);
 DB.def('pakHistory',[]);
 DB.def('araKontrol',[]);
 DB.def('referans',[]);
+DB.def('refHistory',[]);
 DB.def('activityLog',[]);
 DB.def('referansHistory',[]);
 DB.def('uygunsuzluklar',[]);
@@ -536,14 +537,8 @@ const NAV_ITEMS = [
     {id:'dis-kaynak-listesi',label:'Dış Kaynaklı Dökümanlar',icon:'file-text',page:'dis-kaynak-listesi',mod:'disKaynak'},
     {id:'dis-kaynak-gecmisi',label:'Dış Kaynak Geçmişi',icon:'clock',page:'dis-kaynak-gecmisi',mod:'disKaynak'}
   ]},
-  {id:'lak',label:'Lak/Yt',icon:'activity',mod:'lak',children:[
-    {id:'lak-listesi',label:'Lak Listesi',icon:'layers',page:'lak-listesi',mod:'lak'},
-    {id:'lak-gecmisi',label:'Lak Geçmişi',icon:'clock',page:'lak-gecmisi',mod:'lak'}
-  ]},
-  {id:'pak',label:'Pak',icon:'users',mod:'pak',children:[
-    {id:'pak-listesi',label:'Pak Listesi',icon:'layers',page:'pak-listesi',mod:'pak'},
-    {id:'pak-gecmisi',label:'Pak Geçmişi',icon:'clock',page:'pak-gecmisi',mod:'pak'}
-  ]},
+    {id:'lak',label:'Lak/Yt',icon:'activity',page:'lak-listesi',mod:'lak'},
+  {id:'pak',label:'Pak',icon:'users',page:'pak-listesi',mod:'pak'},,
   {id:'ara-kontrol',label:'Ara Kontrol',icon:'shield-check',page:'ara-kontrol',mod:'araKontrol'},
   {id:'referans',label:'Referans Cihazlar',icon:'cpu',mod:'referans',children:[
     {id:'referans-listesi',label:'Referans Listesi',icon:'layers',page:'referans',mod:'referans'},
@@ -553,10 +548,7 @@ const NAV_ITEMS = [
     {id:'satin-alma-talep',label:'Kalibrasyon Satın Alma',icon:'clipboard',page:'satin-alma-talep',mod:'satinalma'},
     {id:'tedarikci-listesi',label:'Onaylı Tedarikçiler',icon:'check-circle',page:'tedarikci-listesi',mod:'satinalma'}
   ]},
-  {id:'uygunsuzluklar',label:'Uygunsuzluklar',icon:'alert-triangle',mod:'uygunsuzluklar',children:[
-    {id:'uygunsuzluk-listesi',label:'Uygunsuzluk Listesi',icon:'layers',page:'uygunsuzluk-listesi',mod:'uygunsuzluklar'},
-    {id:'uygunsuzluk-gecmisi',label:'Uygunsuzluk Geçmişi',icon:'clock',page:'uygunsuzluk-gecmisi',mod:'uygunsuzluklar'}
-  ]},
+  {id:'uygunsuzluklar',label:'Uygunsuzluklar',icon:'alert-triangle',page:'uygunsuzluk-listesi',mod:'uygunsuzluklar'},
   {id:'personeller',label:'Personeller',icon:'user',page:'personeller',mod:'personeller'},
   {id:'ayarlar',label:'Ayarlar',icon:'settings',page:'ayarlar',mod:'ayarlar'}
 ];
@@ -1358,7 +1350,11 @@ function saveRevize(){
   docs[i].revTarihi=today();
   docs[i].durum='Revizyonda';
   const not=document.getElementById('rv-not').value;
-  revs.push({id:uid(),ts:new Date().toISOString(),docId:_revizeDocId,kod:docs[i].kod,tip:docs[i].tip,ad:docs[i].ad,eskiRev:old.revNo,yeniRev:docs[i].revNo,not,yapan:u?`${u.ad} ${u.soyad}`:'Sistem',files:docs[i].files||[]});
+  revs.push({id:uid(),ts:new Date().toISOString(),docId:_revizeDocId,kod:docs[i].kod,tip:docs[i].tip,ad:docs[i].ad,eskiRev:old.revNo,yeniRev:docs[i].revNo,not,yapan:u?`${u.ad} ${u.soyad}`:'Sistem',files:docs[i].files||[],pdfFile:old.pdfFile||null,officeFile:old.officeFile||null});
+  // Revizyon sonrası dokümanın dosyalarını temizle - yeniden yüklenecek
+  docs[i].pdfFile=null;
+  docs[i].officeFile=null;
+  docs[i].files=[];
   DB.set('documents',docs);
   DB.set('docRevisions',revs);
   logActivity('revize','dokumanlar',{desc:`Döküman revize edildi: ${docs[i].kod} Rev${docs[i].revNo}`});
@@ -1412,12 +1408,55 @@ function renderRevizyonGecmisi(){
       <input class="tb-select" id="rv-date2" type="date" onchange="renderRevTable()" style="padding:7px 10px">
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Tarih/Saat</th><th>Kod</th><th>Tip</th><th>Ad</th><th>Eski Rev</th><th>Yeni Rev</th><th>Not</th><th>Yapan</th><th>İşlemler</th></tr></thead>
+      <thead><tr><th>Tarih/Saat</th><th>Kod</th><th>Tip</th><th>Ad</th><th>Eski Rev</th><th>Yeni Rev</th><th>Not</th><th>Yapan</th><th>Dosyalar</th><th>İşlemler</th></tr></thead>
       <tbody id="rv-tbody"></tbody>
     </table></div>
   </div>`;
   renderRevTable();
 }
+
+function revGecmisGoruntule(revId, tip){
+  const revs=DB.get('docRevisions')||[];
+  const r=revs.find(x=>x.id===revId); if(!r) return;
+  const dosya=tip==='pdf'?r.pdfFile:r.officeFile;
+  if(!dosya){toast('Dosya bulunamadı','error');return;}
+  const isPdf=dosya.name.toLowerCase().endsWith('.pdf');
+  const isExcel=dosya.name.toLowerCase().match(/\.xlsx?$/);
+  if(isPdf){
+    const w=window.open('');
+    w.document.write(`<!DOCTYPE html><html><body style="margin:0"><iframe src="${dosya.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+  } else if(isExcel){
+    const w=window.open('','_blank','width=1000,height:700');
+    w.document.write(`<!DOCTYPE html><html><head><title>${dosya.name}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
+      <style>body{font-family:sans-serif;margin:0;background:#1a1a2e;color:#e0e0e0}.tb{background:#16213e;padding:10px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #333}table{border-collapse:collapse;width:100%;font-size:12px}th{background:#2d3561;color:#fff;padding:6px 10px;border:1px solid #444}td{padding:5px 10px;border:1px solid #333;background:#1e1e2e}.sb{padding:4px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#ccc;cursor:pointer;font-size:12px}.sb.a{background:#4f6bf0;color:#fff}</style>
+    </head><body>
+    <div class="tb"><b>📝 ${dosya.name}</b><div id="st"></div><a href="${dosya.data}" download="${dosya.name}" style="margin-left:auto;padding:5px 12px;background:#4f6bf0;color:#fff;border-radius:6px;text-decoration:none;font-size:12px">⬇ İndir</a></div>
+    <div id="tc" style="padding:12px;overflow:auto">Yükleniyor...</div>
+    <script>
+      const b64='${dosya.data.split(',')[1]||dosya.data}';
+      const bin=atob(b64);const arr=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+      const wb=XLSX.read(arr,{type:'array'});
+      function show(n){document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('a',b.dataset.n===n));document.getElementById('tc').innerHTML=XLSX.utils.sheet_to_html(wb.Sheets[n]);}
+      wb.SheetNames.forEach(n=>{const b=document.createElement('button');b.className='sb';b.dataset.n=n;b.textContent=n;b.onclick=()=>show(n);document.getElementById('st').appendChild(b);});
+      if(wb.SheetNames.length)show(wb.SheetNames[0]);
+    <\/script></body></html>`);
+  } else {
+    const w=window.open('');
+    w.document.write(`<p style="font-family:sans-serif;padding:20px">Önizleme desteklenmiyor.</p><a href="${dosya.data}" download="${dosya.name}">İndir</a>`);
+  }
+}
+
+function revGecmisIndir(revId, tip){
+  const revs=DB.get('docRevisions')||[];
+  const r=revs.find(x=>x.id===revId); if(!r) return;
+  const dosya=tip==='pdf'?r.pdfFile:r.officeFile;
+  if(!dosya){toast('Dosya bulunamadı','error');return;}
+  const a=document.createElement('a');
+  a.href=dosya.data; a.download=dosya.name; a.click();
+}
+
 function renderRevTable(){
   const tbody=document.getElementById('rv-tbody');if(!tbody)return;
   let revs=DB.get('docRevisions')||[];
@@ -1442,7 +1481,16 @@ function renderRevTable(){
     <td><span class="badge badge-blue">${r.yeniRev}</span></td>
     <td style="max-width:150px;color:var(--text3)">${truncate(r.not,30)}</td>
     <td>${r.yapan||'-'}</td>
+    <td style="font-size:11px">
+      ${r.pdfFile?`<div style="color:var(--danger)">📄 ${r.pdfFile.name}</div>`:''}
+      ${r.officeFile?`<div style="color:var(--primary)">📝 ${r.officeFile.name}</div>`:''}
+      ${!r.pdfFile&&!r.officeFile?'<span style="color:var(--text3)">-</span>':''}
+    </td>
     <td><div class="action-btns">
+      ${r.pdfFile?`<button class="icon-btn" title="PDF Görüntüle" onclick="revGecmisGoruntule('${r.id}','pdf')" style="color:var(--danger)">${icon('file-text',13)}</button>`:''}
+      ${r.pdfFile?`<button class="icon-btn" title="PDF İndir" onclick="revGecmisIndir('${r.id}','pdf')" style="color:var(--danger)">${icon('download',13)}</button>`:''}
+      ${r.officeFile?`<button class="icon-btn" title="${r.officeFile.name} Görüntüle" onclick="revGecmisGoruntule('${r.id}','office')" style="color:var(--primary)">${icon('file',13)}</button>`:''}
+      ${r.officeFile?`<button class="icon-btn" title="${r.officeFile?.name||'Dosya'} İndir" onclick="revGecmisIndir('${r.id}','office')" style="color:var(--primary)">${icon('download',13)}</button>`:''}
       ${canEdit('dokumanlar')?`<button class="icon-btn" title="Geri Al" onclick="geriAl('${r.id}')">${icon('rotate-ccw',13)}</button>`:''}
     </div></td>
   </tr>`).join('');
@@ -1471,7 +1519,7 @@ function renderLakPak(type){
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="lak-search" type="text" placeholder="${label} adı veya kodu ara..." oninput="renderLakTable('${type}')"></div>
       <select class="tb-select" id="lak-kat" onchange="renderLakTable('${type}')"><option value="">Tüm Kategoriler</option>${KATEGORILER().map(k=>`<option>${k}</option>`).join('')}</select>
       <select class="tb-select" id="lak-durum" onchange="renderLakTable('${type}')"><option value="">Tüm Durumlar</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option></select>
-      <select class="tb-select" id="lak-sure" onchange="renderLakTable('${type}')"><option value="">Tüm Süreler</option><option value="30">30 Gün İçinde</option><option value="60">60 Gün İçinde</option><option value="90">90 Gün İçinde</option></select>
+      <select class="tb-select" id="lak-sure" onchange="renderLakTable('${type}')" style="max-width:110px"><option value="">Tüm Yıllar</option>${Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y=>`<option value="${y}">${y}</option>`).join('')}</select>
       <select class="tb-select" id="lak-sort" onchange="renderLakTable('${type}')"><option value="katilim">Katılım Tarihi</option><option value="sonuc">Sonuç Rapor</option><option value="sonraki">Sonraki Plan</option></select>
     </div>
     <div id="lak-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:8px"></div>
@@ -1487,7 +1535,10 @@ function renderLakTable(type){
   const kat=document.getElementById('lak-kat')?.value||'';
   const durum=document.getElementById('lak-durum')?.value||'';
   const la=type==='lak';
+  const lakYil=document.getElementById('lak-yil')?.value||'';
   items=items.filter(x=>{
+    const _lakTar=la?x.sonucRaporTarihi:x.pakKatilimTarihi;
+    if(lakYil&&!(_lakTar||'').startsWith(lakYil))return false;
     const name=la?x.lakAdi:x.pakAdi;
     const kod=la?x.lakKodu:x.pakKodu;
     if(q&&!(name?.toLowerCase().includes(q)||kod?.toLowerCase().includes(q)))return false;
@@ -1495,9 +1546,8 @@ function renderLakTable(type){
     if(durum&&x.durum!==durum)return false;
     const sure=document.getElementById('lak-sure')?.value||'';
     if(sure){
-      const sp=la?x.birSonrakiPlanliLak:x.birSonrakiPlanliPak;
-      const d=daysDiff(sp);
-      if(d===null||d<0||d>parseInt(sure)) return false;
+      const _tarih=la?x.sonucRaporTarihi:x.pakKatilimTarihi;
+      if(!(_tarih||'').startsWith(sure)) return false;
     }
     return true;
   });
@@ -1991,9 +2041,13 @@ function renderAraKontrol(){
     </div>
     <div class="toolbar">
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="ara-search" type="text" placeholder="Cihaz adı, marka, model, seri, envanter..." oninput="renderAraTable()"></div>
-      <select class="tb-select" id="ara-kat" onchange="renderAraTable()"><option value="">Tüm Kategoriler</option>${ARA_KATEGORILER().map(k=>`<option>${k}</option>`).join('')}</select>
+      <select class="tb-select" id="ara-kat" onchange="renderAraTable()"><option value="">Tüm Kategoriler</option>${ARA_KATEGORILER.map(k=>`<option>${k}</option>`).join('')}</select>
       <select class="tb-select" id="ara-durum" onchange="renderAraTable()"><option value="">Tüm Durumlar</option><option>Planlandı</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option><option>Gecikti</option></select>
       <select class="tb-select" id="ara-sort" onchange="renderAraTable()"><option value="tarih">Ara Kontrol Tarihi</option><option value="sonraki">Sonraki Planlanan</option><option value="envanter">Envanter No</option></select>
+      <select class="tb-select" id="ara-yil" onchange="renderAraTable()" style="max-width:100px">
+        <option value="">Tüm Yıllar</option>
+        ${Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y=>`<option value="${y}">${y}</option>`).join('')}
+      </select>
     </div>
     <div id="ara-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-top:8px"></div>
   </div>`;
@@ -2012,7 +2066,9 @@ function renderAraTable(){
     if(!x.manualDurum&&x.birSonrakiPlanliAra&&x.birSonrakiPlanliAra<todayStr&&x.durum!=='Tamamlandı') x.durum='Gecikti';
     return x;
   });
+  const araYil=document.getElementById('ara-yil')?.value||'';
   items=items.filter(x=>{
+    if(araYil&&!(x.kalibrasyonTarihi||x.tarih||'').startsWith(araYil))return false;
     const fields=[x.cihazAdi,x.marka,x.model,x.seriNo,x.envanterNo];
     if(q&&!fields.some(f=>f?.toLowerCase().includes(q)))return false;
     if(kat&&x.kategori!==kat)return false;
@@ -2157,42 +2213,49 @@ function previewAraFile(id){ previewAraFileById(id,'pdf'); }
 function addAraModal(){
   const div=document.createElement('div');
   div.innerHTML=`<div class="modal-overlay" id="ara-modal">
-    <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="ara-modal-title">Ara Kontrol Ekle</div><div class="modal-close" onclick="closeModal('ara-modal')">${icon('x-circle',16)}</div></div>
-    <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
-      <div class="tab active" onclick="switchAraTab('bilgiler',this)">Bilgiler</div>
-      <div class="tab" onclick="switchAraTab('dosyalar',this)">Dosyalar</div>
-    </div>
-    <div id="ara-tab-bilgiler" class="modal-body">
-      <div class="form-row">
-        <div class="form-group"><label>Cihaz Adı</label><input id="a-cihaz" type="text" placeholder="Cihaz adını girin"></div>
-        <div class="form-group"><label>Kategori</label><select id="a-kat">${ARA_KATEGORILER().map(k=>`<option>${k}</option>`).join('')}</select></div>
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title" id="ara-modal-title">Ara Kontrol Ekle</div>
+        <div class="modal-close" onclick="closeModal('ara-modal')">${icon('x-circle',16)}</div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Marka</label><input id="a-marka" type="text"></div>
-        <div class="form-group"><label>Model</label><input id="a-model" type="text"></div>
+      <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
+        <div class="tab active" onclick="switchAraTab('bilgiler',this)">Bilgiler</div>
+        <div class="tab" onclick="switchAraTab('dosyalar',this)">Dosyalar</div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Seri No</label><input id="a-seri" type="text"></div>
-        <div class="form-group"><label>Envanter No</label><input id="a-envanter" type="text"></div>
+      <div id="ara-tab-bilgiler" class="modal-body">
+        <div class="form-row">
+          <div class="form-group"><label>Cihaz Adı</label><input id="a-cihaz" type="text" placeholder="Cihaz adını girin"></div>
+          <div class="form-group"><label>Kategori</label><select id="a-kat">${ARA_KATEGORILER.map(k=>`<option>${k}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Marka</label><input id="a-marka" type="text"></div>
+          <div class="form-group"><label>Model</label><input id="a-model" type="text"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Seri No</label><input id="a-seri" type="text"></div>
+          <div class="form-group"><label>Envanter No</label><input id="a-envanter" type="text"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Ara Kontrol Tarihi</label><input id="a-tarih" type="date"></div>
+          <div class="form-group"><label>Sonraki Planlanan</label><input id="a-sonraki" type="date"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Ara Kontrolü Yapan</label><input id="a-yapan" type="text"></div>
+          <div class="form-group"><label>Ara Kontrol Kriteri</label><input id="a-kriter" type="text" placeholder="ör. ISO/IEC 17025 Md.5.9"></div>
+        </div>
+        <div class="form-group"><label>Durum</label><select id="a-durum"><option>Planlandı</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option><option>Gecikti</option></select></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Ara Kontrol Tarihi</label><input id="a-tarih" type="date"></div>
-        <div class="form-group"><label>Sonraki Planlanan</label><input id="a-sonraki" type="date"></div>
+      <div id="ara-tab-dosyalar" class="modal-body" style="display:none">
+        <div id="ara-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div style="margin-top:16px">
+          <button onclick="uploadAraModalFile()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
+            ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
+          </button>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Ara Kontrolü Yapan</label><input id="a-yapan" type="text"></div>
-        <div class="form-group"><label>Ara Kontrol Kriteri</label><input id="a-kriter" type="text" placeholder="ör. ISO/IEC 17025 Md.5.9"></div>
-      </div>
-      <div class="form-group"><label>Durum</label><select id="a-durum"><option>Planlandı</option><option>Sonuç Bekleniyor</option><option>Tamamlandı</option><option>Gecikti</option></select></div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('ara-modal')">İptal</button><button class="btn btn-primary" onclick="saveAra()">Kaydet</button></div>
-    </div>
-    <div id="ara-tab-dosyalar" class="modal-body" style="display:none">
-      <div id="ara-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
-      <div style="margin-top:16px">
-        <button onclick="uploadAraModalFile()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
-          ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
-        </button>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('ara-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveAra()">Kaydet</button>
       </div>
     </div>
   </div>`;
@@ -2413,6 +2476,7 @@ function renderRefTable(){
     {key:'kalibrasyonNo',   label:'Kalibrasyon No'},
     {key:'kalibrasyonTarihi',      label:'Kalibrasyon Tarihi'},
     {key:'birSonrakiKalibrasyon',  label:'Sonraki Kalibrasyon'},
+    {key:'izlenebilirlik',        label:'İzlenebilirlik'},
     {key:'degerlendirmeKriteri',   label:'Değerlendirme Kriteri'},
     {key:'_durum',          label:'Durum'},
   ];
@@ -2445,9 +2509,11 @@ function renderRefTable(){
     <td>${x.kalibrasyonNo||'-'}</td>
     <td>${formatDate(x.kalibrasyonTarihi)}</td>
     <td>${formatDate(x.birSonrakiKalibrasyon)}</td>
+    <td style="font-size:11.5px">${x.izlenebilirlik||'-'}</td>
     <td style="font-size:11.5px">${x.degerlendirmeKriteri||'-'}</td>
     <td><span class="badge ${durumBadge[x._durum]||'badge-gray'}">${x._durum||'-'}</span>${x.manualDurum?'<span style="font-size:10px;color:var(--text3);margin-left:4px">manuel</span>':''}</td>
-    <td><div class="action-btns">
+    <td style="min-width:260px"><div class="action-btns" style="flex-wrap:nowrap;gap:4px">
+      ${canEdit('referans')?`<button onclick="openYeniKalModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.5);background:rgba(0,212,170,.1);color:var(--accent);cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">🔄 Yeni Kal.</button>`:''}
       ${canEdit('referans')?`<button class="icon-btn" title="PDF Yükle" onclick="uploadRefFile('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">PDF</span></button>`:''}
       ${x.pdfFile?`<button class="icon-btn" title="PDF Önizle" onclick="previewRefFileById('${x.id}','pdf')" style="color:var(--danger);border-color:rgba(240,82,82,.2)">${icon('eye',12)}</button>`:''}
       ${canEdit('referans')?`<button class="icon-btn" title="Word/Excel Yükle" onclick="uploadRefFile('${x.id}','office')" style="color:var(--accent);border-color:rgba(0,212,170,.2)">${icon('upload',12)}<span style="font-size:10px;margin-left:2px">W/E</span></button>`:''}
@@ -2468,6 +2534,111 @@ async function deleteRef(id){
   DB.set('referans',items.filter(i=>i.id!==id));
   toast('Silindi','success');renderRefTable();
 }
+
+let _yeniKalRefId=null;
+
+function openYeniKalModal(id){
+  _yeniKalRefId=id;
+  const items=DB.get('referans')||[];
+  const x=items.find(r=>r.id===id); if(!x) return;
+  // Modal yoksa oluştur
+  if(!document.getElementById('yenikal-modal')){
+    const div=document.createElement('div');
+    div.innerHTML=`<div id="yenikal-modal" class="modal-overlay">
+      <div class="modal" style="max-width:580px">
+        <div class="modal-header">
+          <div class="modal-title">🔄 Yeni Kalibrasyon Kaydı</div>
+          <div class="modal-close" onclick="closeModal('yenikal-modal')">${icon('x-circle',16)}</div>
+        </div>
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:20px">
+          <div id="yenikal-cihaz-info" style="background:rgba(0,212,170,.08);border:1px solid rgba(0,212,170,.25);border-radius:10px;padding:14px 18px;font-size:13px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="grid-column:1/-1">
+              <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Yeni Kalibrasyon No <span style="color:var(--danger)">*</span></label>
+              <input id="yenikal-no" type="text" style="width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px" placeholder="Kalibrasyon sertifika numarası...">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Kalibrasyon Tarihi <span style="color:var(--danger)">*</span></label>
+              <input id="yenikal-tarih" type="date" style="width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Gelecek Kalibrasyon Tarihi <span style="color:var(--danger)">*</span></label>
+              <input id="yenikal-sonraki" type="date" style="width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px">
+            </div>
+            <div style="grid-column:1/-1">
+              <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">İzlenebilirlik</label>
+              <input id="yenikal-izlenebilirlik" type="text" style="width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:14px" placeholder="TÜBİTAK UME, BIPM, EURAMET vb...">
+            </div>
+          </div>
+          <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text3)">
+            ⚠️ Mevcut kalibrasyon bilgileri ve dosyalar <b style="color:var(--text2)">geçmişe</b> taşınacak, cihaz dosya alanları sıfırlanacaktır.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closeModal('yenikal-modal')">İptal</button>
+          <button class="btn btn-primary" onclick="saveYeniKal()" style="padding:10px 24px">🔄 Kaydet & Geçmişe Al</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(div);
+  }
+  // Cihaz bilgisi göster
+  document.getElementById('yenikal-cihaz-info').innerHTML=
+    `<b>${x.cihazAdi||'-'}</b> · ${x.marka||''} ${x.model||''}<br>
+     <span style="color:var(--text3);font-size:11px">Mevcut Kal. No: ${x.kalibrasyonNo||'-'} · Son Kal: ${formatDate(x.kalibrasyonTarihi)||'-'}</span>`;
+  // Formu temizle
+  document.getElementById('yenikal-no').value='';
+  document.getElementById('yenikal-tarih').value='';
+  document.getElementById('yenikal-sonraki').value='';
+  openModal('yenikal-modal');
+}
+
+function saveYeniKal(){
+  const kalNo=document.getElementById('yenikal-no').value.trim();
+  const kalTar=document.getElementById('yenikal-tarih').value;
+  const sonraki=document.getElementById('yenikal-sonraki').value;
+  if(!kalNo||!kalTar||!sonraki){toast('Tüm alanlar zorunlu','error');return;}
+
+  const items=DB.get('referans')||[];
+  const i=items.findIndex(r=>r.id===_yeniKalRefId); if(i<0) return;
+  const eski={...items[i]};
+
+  // Geçmişe kaydet (eski veriler + dosyalar)
+  const history=DB.get('refHistory')||[];
+  const u=getActiveUser();
+  history.push({
+    id:uid(),
+    ts:new Date().toISOString(),
+    refId:_yeniKalRefId,
+    cihazAdi:eski.cihazAdi,
+    marka:eski.marka,
+    model:eski.model,
+    seriNo:eski.seriNo,
+    envanterNo:eski.envanterNo,
+    kalibrasyonNo:eski.kalibrasyonNo,
+    kalibrasyonTarihi:eski.kalibrasyonTarihi,
+    birSonrakiKalibrasyon:eski.birSonrakiKalibrasyon,
+    pdfFile:eski.pdfFile||null,
+    officeFile:eski.officeFile||null,
+    yapan:u?`${u.ad} ${u.soyad}`:'Sistem'
+  });
+  DB.set('refHistory',history);
+
+  // Cihazı güncelle - dosyaları temizle
+  items[i].kalibrasyonNo=kalNo;
+  items[i].kalibrasyonTarihi=kalTar;
+  items[i].birSonrakiKalibrasyon=sonraki;
+  items[i].izlenebilirlik=document.getElementById('yenikal-izlenebilirlik')?.value||eski.izlenebilirlik||'';
+  items[i].pdfFile=null;
+  items[i].officeFile=null;
+  DB.set('referans',items);
+
+  logActivity('update','referans',{desc:`Yeni kalibrasyon eklendi: ${eski.cihazAdi} → ${kalNo}`});
+  closeModal('yenikal-modal');
+  renderRef();
+  toast('Kalibrasyon güncellendi, eski veriler geçmişe kaydedildi ✅','success');
+}
+
 function uploadRefFile(id, fileType){
   const inp=document.createElement('input');
   inp.type='file';
@@ -2524,6 +2695,7 @@ function addRefModal(){
         <div class="form-group"><label>Sonraki Kalibrasyon Tarihi</label><input id="r-sonraki" type="date"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>İzlenebilirlik</label><input id="r-izlenebilirlik" type="text" placeholder="TÜBİTAK UME, BIPM vb..."></div>
         <div class="form-group"><label>Değerlendirme Kriteri</label><input id="r-kriter" type="text"></div>
         <div class="form-group"><label>Durum (Manuel)</label><select id="r-durum"><option value="">Otomatik</option><option>Güncel</option><option>Kalibrasyon Yaklaştı</option><option>Geçti</option></select></div>
       </div>
@@ -2549,7 +2721,8 @@ function openRefModal(id){
     document.getElementById('r-kalno').value=x.kalibrasyonNo||'';
     document.getElementById('r-tarih').value=x.kalibrasyonTarihi||'';
     document.getElementById('r-sonraki').value=x.birSonrakiKalibrasyon||'';
-    document.getElementById('r-kriter').value=x.degerlendirmeKriteri||'';
+    document.getElementById('r-izlenebilirlik').value=x.izlenebilirlik||'';
+  document.getElementById('r-kriter').value=x.degerlendirmeKriteri||'';
     document.getElementById('r-durum').value=x.manualDurum?x.durum:'';
   } else {
     ['r-cihaz','r-marka','r-model','r-seri','r-envanter','r-kalno','r-kriter'].forEach(i=>document.getElementById(i).value='');
@@ -2687,7 +2860,7 @@ function saveRef(){
   if(!cihaz){toast('Cihaz adı zorunlu','error');return;}
   const items=DB.get('referans')||[];
   const md=document.getElementById('r-durum').value;
-  const data={kategori,cihazAdi:cihaz,marka:document.getElementById('r-marka').value,model:document.getElementById('r-model').value,seriNo:document.getElementById('r-seri').value,envanterNo:document.getElementById('r-envanter').value,kalibrasyonNo:document.getElementById('r-kalno').value,kalibrasyonTarihi:document.getElementById('r-tarih').value,birSonrakiKalibrasyon:document.getElementById('r-sonraki').value,degerlendirmeKriteri:document.getElementById('r-kriter').value,durum:md||'Güncel',manualDurum:!!md};
+  const data={kategori,cihazAdi:cihaz,marka:document.getElementById('r-marka').value,model:document.getElementById('r-model').value,seriNo:document.getElementById('r-seri').value,envanterNo:document.getElementById('r-envanter').value,kalibrasyonNo:document.getElementById('r-kalno').value,kalibrasyonTarihi:document.getElementById('r-tarih').value,birSonrakiKalibrasyon:document.getElementById('r-sonraki').value,izlenebilirlik:document.getElementById('r-izlenebilirlik')?.value||'',degerlendirmeKriteri:document.getElementById('r-kriter').value,durum:md||'Güncel',manualDurum:!!md};
   const u2=getActiveUser();
   if(_editRefId){
     const i=items.findIndex(x=>x.id===_editRefId);
@@ -2770,7 +2943,7 @@ function renderPersonelTable(){
       </div>`).join('');
 
     // Belgeler özeti
-    const belgeOzet=PERSONEL_BELGE_KATEGORILER().map(k=>{
+    const belgeOzet=PERSONEL_BELGE_KATEGORILER.map(k=>{
       const count=(belgeler[k.id]||[]).length;
       return count>0?`<span onclick="showPersonelBelgeList('${p.id}','${k.id}')" style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(0,212,170,.1);color:var(--accent);cursor:pointer" onmouseover="this.style.background='rgba(0,212,170,.2)'" onmouseout="this.style.background='rgba(0,212,170,.1)'">${k.label}: ${count}</span>`:'';
     }).filter(Boolean).join('');
@@ -2966,7 +3139,7 @@ function renderPersonelBelgeler(){
   const p = persons.find(x => x.id === _editPersonelId);
   const belgeler = (p && p.belgeler) ? p.belgeler : {};
 
-  container.innerHTML = PERSONEL_BELGE_KATEGORILER().map(kat => {
+  container.innerHTML = PERSONEL_BELGE_KATEGORILER.map(kat => {
     const files = belgeler[kat.id] || [];
     return `
       <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
@@ -5137,24 +5310,16 @@ function renderReferansGecmisi(){
   if(!canView('referans')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
   const c=document.getElementById('content');
   c.innerHTML=`<div class="page">
-    <div class="section-header"><div class="section-title">Referans Cihazlar Geçmişi</div></div>
+    <div class="section-header"><div class="section-title">Referans Kalibrasyon Geçmişi</div></div>
     <div class="toolbar">
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="rh-search" type="text" placeholder="Cihaz adı, kullanıcı ara..." oninput="renderRefHistTable()">
+        <input id="rh-search" type="text" placeholder="Cihaz adı, kal. no ara..." oninput="renderRefHistTable()">
       </div>
-      <select class="tb-select" id="rh-action" onchange="renderRefHistTable()">
-        <option value="">Tüm İşlemler</option>
-        <option value="create">Oluşturuldu</option>
-        <option value="update">Güncellendi</option>
-        <option value="status_change">Durum Değişti</option>
-        <option value="delete">Silindi</option>
-        <option value="file_upload">Dosya Yüklendi</option>
-      </select>
       <input class="tb-select" id="rh-d1" type="date" onchange="renderRefHistTable()" style="padding:7px 10px">
       <input class="tb-select" id="rh-d2" type="date" onchange="renderRefHistTable()" style="padding:7px 10px">
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Tarih/Saat</th><th>Kullanıcı</th><th>Cihaz</th><th>İşlem</th><th>Değişiklik</th></tr></thead>
+      <thead><tr><th>Tarih/Saat</th><th>Cihaz</th><th>Marka/Model</th><th>Eski Kal. No</th><th>Kal. Tarihi</th><th>Sonraki Kal.</th><th>Yapan</th><th>Dosyalar</th></tr></thead>
       <tbody id="rh-tbody"></tbody>
     </table></div>
   </div>`;
@@ -5163,38 +5328,72 @@ function renderReferansGecmisi(){
 
 function renderRefHistTable(){
   const tbody=document.getElementById('rh-tbody');if(!tbody)return;
-  let hist=DB.get('referansHistory')||[];
+  let hist=DB.get('refHistory')||[];
   const q=(document.getElementById('rh-search')?.value||'').toLowerCase();
-  const act=document.getElementById('rh-action')?.value||'';
   const d1=document.getElementById('rh-d1')?.value||'';
   const d2=document.getElementById('rh-d2')?.value||'';
-  hist=hist.filter(h=>{
-    if(act&&h.actionType!==act)return false;
-    if(d1&&h.ts<d1)return false;
-    if(d2&&h.ts>d2+'T23:59')return false;
-    if(q&&!JSON.stringify(h).toLowerCase().includes(q))return false;
+  hist=hist.filter(r=>{
+    if(q&&![(r.cihazAdi||''),(r.kalibrasyonNo||'')].some(f=>f.toLowerCase().includes(q)))return false;
+    if(d1&&r.ts<d1)return false;
+    if(d2&&r.ts>d2+'T23:59')return false;
     return true;
   });
-  const actionLabels={create:'Oluşturuldu',update:'Güncellendi',status_change:'Durum Değişti',delete:'Silindi',file_upload:'Dosya Yüklendi'};
-  const actionColors={create:'badge-green',update:'badge-blue',status_change:'badge-amber',delete:'badge-red',file_upload:'badge-teal'};
-  if(!hist.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><p>Geçmiş bulunamadı</p></div></td></tr>`;return;}
-  tbody.innerHTML=hist.map(h=>`<tr>
-    <td>${new Date(h.ts).toLocaleString('tr-TR')}</td>
-    <td class="strong">${h.user||'-'}</td>
-    <td>${h.snapshot?.cihazAdi||h.cihazAdi||'-'}</td>
-    <td><span class="badge ${actionColors[h.actionType]||'badge-gray'}">${actionLabels[h.actionType]||h.actionType}</span></td>
-    <td style="font-size:12px;color:var(--text3)">${h.changes?`${h.changes.old||''} → ${h.changes.new||''}`:h.actionType==='create'?'Yeni cihaz eklendi':'-'}</td>
+  hist.sort((a,b)=>b.ts.localeCompare(a.ts));
+  if(!hist.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><p>Geçmiş bulunamadı</p></div></td></tr>`;return;}
+  tbody.innerHTML=hist.map(r=>`<tr>
+    <td style="white-space:nowrap">${new Date(r.ts).toLocaleString('tr-TR')}</td>
+    <td class="strong">${r.cihazAdi||'-'}</td>
+    <td style="color:var(--text3)">${[r.marka,r.model].filter(Boolean).join(' ')||'-'}</td>
+    <td><span class="badge badge-gray">${r.kalibrasyonNo||'-'}</span></td>
+    <td>${formatDate(r.kalibrasyonTarihi)||'-'}</td>
+    <td>${formatDate(r.birSonrakiKalibrasyon)||'-'}</td>
+    <td>${r.yapan||'-'}</td>
+    <td><div class="action-btns">
+      ${r.pdfFile?`<button class="icon-btn" title="PDF Görüntüle" onclick="refHistGoruntule('${r.id}','pdf')" style="color:var(--danger)">${icon('eye',13)}</button>`:''}
+      ${r.pdfFile?`<button class="icon-btn" title="PDF İndir" onclick="refHistIndir('${r.id}','pdf')" style="color:var(--danger)">${icon('download',13)}</button>`:''}
+      ${r.officeFile?`<button class="icon-btn" title="${r.officeFile.name} Görüntüle" onclick="refHistGoruntule('${r.id}','office')" style="color:var(--primary)">${icon('eye',13)}</button>`:''}
+      ${r.officeFile?`<button class="icon-btn" title="${r.officeFile.name} İndir" onclick="refHistIndir('${r.id}','office')" style="color:var(--primary)">${icon('download',13)}</button>`:''}
+      ${!r.pdfFile&&!r.officeFile?'<span style="color:var(--text3);font-size:11px">-</span>':''}
+    </div></td>
   </tr>`).join('');
 }
 
+function refHistGoruntule(id, tip){
+  const r=(DB.get('refHistory')||[]).find(x=>x.id===id); if(!r) return;
+  const d=tip==='pdf'?r.pdfFile:r.officeFile; if(!d){toast('Dosya yok','error');return;}
+  if(d.name.toLowerCase().endsWith('.pdf')){
+    const w=window.open('');
+    w.document.write(`<!DOCTYPE html><html><body style="margin:0"><iframe src="${d.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+  } else {
+    const w=window.open('','_blank','width=1000,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><title>${d.name}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
+      <style>body{font-family:sans-serif;margin:0;background:#1a1a2e;color:#e0e0e0}.tb{background:#16213e;padding:10px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #333}table{border-collapse:collapse;width:100%;font-size:12px}th{background:#2d3561;color:#fff;padding:6px 10px;border:1px solid #444}td{padding:5px 10px;border:1px solid #333;background:#1e1e2e}.sb{padding:4px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#ccc;cursor:pointer}.sb.a{background:#4f6bf0;color:#fff}</style>
+    </head><body>
+    <div class="tb"><b>📝 ${d.name}</b><div id="st"></div><a href="${d.data}" download="${d.name}" style="margin-left:auto;padding:5px 12px;background:#4f6bf0;color:#fff;border-radius:6px;text-decoration:none;font-size:12px">⬇ İndir</a></div>
+    <div id="tc" style="padding:12px;overflow:auto">Yükleniyor...</div>
+    <script>const b64='${d.data.split(',')[1]||d.data}';const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);const wb=XLSX.read(arr,{type:'array'});function show(n){document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('a',b.dataset.n===n));document.getElementById('tc').innerHTML=XLSX.utils.sheet_to_html(wb.Sheets[n]);}wb.SheetNames.forEach(n=>{const b=document.createElement('button');b.className='sb';b.dataset.n=n;b.textContent=n;b.onclick=()=>show(n);document.getElementById('st').appendChild(b);});if(wb.SheetNames.length)show(wb.SheetNames[0]);<\/script>
+    </body></html>`);
+  }
+}
+
+function refHistIndir(id, tip){
+  const r=(DB.get('refHistory')||[]).find(x=>x.id===id); if(!r) return;
+  const d=tip==='pdf'?r.pdfFile:r.officeFile; if(!d) return;
+  const a=document.createElement('a'); a.href=d.data; a.download=d.name; a.click();
+}
+
 // ==================== UYGUNSUZLUKLAR ====================
+// Aşamalar: Onay Bekliyor → Analiz Bekliyor → Kapatma Bekliyor → Kapatıldı
+let _editUygId = null;
+
 function renderUygunsuzluklar(){
   if(!canView('uygunsuzluklar')){document.getElementById('content').innerHTML='<div class="empty-state"><p>Bu modülü görüntüleme yetkiniz yok.</p></div>';return;}
   const c=document.getElementById('content');
   c.innerHTML=`<div class="page">
     <div class="section-header">
       <div class="section-title">Uygunsuzluklar</div>
-      ${canEdit('uygunsuzluklar')?`<button class="btn btn-primary" onclick="openUygModal(null)">${icon('plus',14)} Uygunsuzluk Ekle</button>`:`<button class="btn btn-ghost" disabled>${icon('plus',14)} Ekle</button>`}
+      ${canEdit('uygunsuzluklar')?`<button class="btn btn-primary" onclick="openYeniUygModal()">+ Uygunsuzluk Ekle</button>`:''}
     </div>
     <div class="toolbar">
       <div class="tb-search"><svg class="s-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -5202,312 +5401,615 @@ function renderUygunsuzluklar(){
       </div>
       <select class="tb-select" id="uyg-durum" onchange="renderUygCards()">
         <option value="">Tüm Durumlar</option>
-        <option>Açık</option>
-        <option>Devam Ediyor</option>
+        <option>Onay Bekliyor</option>
+        <option>Analiz Bekliyor</option>
+        <option>2.Onay Bekliyor</option>
+        <option>Kapatma Bekliyor</option>
         <option>Kapatıldı</option>
       </select>
-      <select class="tb-select" id="uyg-sort" onchange="renderUygCards()">
-        <option value="tarih">Uygunsuzluk Tarihi</option>
-        <option value="kapatma">Kapatma Tarihi</option>
-        <option value="no">Uygunsuzluk No</option>
+      <select class="tb-select" id="uyg-yil" onchange="renderUygCards()" style="max-width:100px">
+        <option value="">Tüm Yıllar</option>
+        ${Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y=>`<option value="${y}">${y}</option>`).join('')}
       </select>
     </div>
-    <div id="uyg-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-top:8px"></div>
+    <div id="uyg-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;margin-top:8px"></div>
   </div>`;
-  addUygModal();
   renderUygCards();
 }
-
-function renderUygTable(){ renderUygCards(); }
 
 function renderUygCards(){
   const container=document.getElementById('uyg-cards');if(!container)return;
   let items=DB.get('uygunsuzluklar')||[];
   const q=(document.getElementById('uyg-search')?.value||'').toLowerCase();
   const durum=document.getElementById('uyg-durum')?.value||'';
-  const sort=document.getElementById('uyg-sort')?.value||'tarih';
+  const uygYil=document.getElementById('uyg-yil')?.value||'';
   items=items.filter(x=>{
+    if(uygYil&&!(x.tarih||'').startsWith(uygYil))return false;
     if(q&&!(x.no?.toLowerCase().includes(q)||x.aciklama?.toLowerCase().includes(q)))return false;
     if(durum&&x.durum!==durum)return false;
     return true;
   });
-  items.sort((a,b)=>{
-    if(sort==='tarih') return (b.tarih||'').localeCompare(a.tarih||'');
-    if(sort==='kapatma') return (b.kapatmaTarihi||'').localeCompare(a.kapatmaTarihi||'');
-    if(sort==='no') return (a.no||'').localeCompare(b.no||'');
-    return 0;
-  });
+  items.sort((a,b)=>(b.olusturmaTarihi||b.tarih||'').localeCompare(a.olusturmaTarihi||a.tarih||''));
   if(!items.length){container.innerHTML='<div class="empty-state" style="grid-column:1/-1"><p>Uygunsuzluk bulunamadı</p></div>';return;}
-  const durumColors={Açık:'#dc2626','Devam Ediyor':'#d97706',Kapatıldı:'#16a34a'};
-  const durumBadge={Açık:'badge-red','Devam Ediyor':'badge-amber',Kapatıldı:'badge-green'};
-  container.innerHTML=items.map(x=>{
-    const files=x.files||[];
-    const fileCount=files.length;
-    return `<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:8px;background:rgba(${x.durum==='Kapatıldı'?'22,163,74':'x.durum==="Devam Ediyor"?215+","+119+","+6:220+","+38+","+38'},.15);display:flex;align-items:center;justify-content:center;font-size:16px">${x.durum==='Kapatıldı'?'✅':x.durum==='Devam Ediyor'?'🔄':'⚠️'}</div>
-          <div>
-            <div style="font-weight:700;font-size:14px">${x.no||'-'}</div>
-            <div style="font-size:11px;color:var(--text3)">${formatDate(x.tarih)}</div>
-          </div>
-        </div>
-        <span class="badge ${durumBadge[x.durum]||'badge-gray'}">${x.durum||'-'}</span>
+  container.innerHTML=items.map(x=>buildUygCard(x)).join('');
+}
+
+function buildUygCard(x){
+  const durumRenk={'Onay Bekliyor':'#f59e0b','2.Onay Bekliyor':'#f59e0b','Analiz Bekliyor':'#4f6bf0','Kapatma Bekliyor':'#8b5cf6','Kapatıldı':'#16a34a'};
+  const durumBadge={'Onay Bekliyor':'badge-amber','2.Onay Bekliyor':'badge-amber','Analiz Bekliyor':'badge-blue','Kapatma Bekliyor':'badge-purple','Kapatıldı':'badge-green'};
+  const durumEmoji={'Onay Bekliyor':'⏳','2.Onay Bekliyor':'⏳','Analiz Bekliyor':'🔍','Kapatma Bekliyor':'📋','Kapatıldı':'✅'};
+  const asamalar=['Giriş','1.Onay','Analiz','2.Onay','Kapatma'];
+  const asamaIdx={'Onay Bekliyor':1,'Analiz Bekliyor':3,'2.Onay Bekliyor':4,'Kapatma Bekliyor':4,'Kapatıldı':5};
+  const simdiki=asamaIdx[x.durum]||1;
+  const files=x.files||[];
+
+  const asamaBar=asamalar.map((s,i)=>{
+    const tamamlandi=i<simdiki;
+    const aktif=i===simdiki-1;
+    return `<div style="display:flex;align-items:center;flex:1">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="width:16px;height:16px;border-radius:50%;background:${tamamlandi?'var(--accent)':aktif?durumRenk[x.durum]||'var(--border)':'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700">${tamamlandi?'✓':i+1}</div>
+        <div style="font-size:7.5px;color:${tamamlandi?'var(--accent)':aktif?durumRenk[x.durum]||'var(--text3)':'var(--text3)'};white-space:nowrap">${s}</div>
       </div>
-      <div style="padding:14px 16px">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">${x.aciklama||'-'}</div>
-        ${x.kaplam?`<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:2px">KAPLAM</div><div style="font-size:12px;color:var(--text2)">${x.kaplam}</div></div>`:''}
-        ${x.duzelticiFailiyet?`<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:2px">DÜZELTİCİ FAALİYET</div><div style="font-size:12px;color:var(--text2)">${x.duzelticiFailiyet}</div></div>`:''}
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-          ${x.sorumlu?`<div style="font-size:11.5px"><span style="color:var(--text3)">Sorumlu: </span>${x.sorumlu}</div>`:''}
-          ${x.hedefTar?`<div style="font-size:11.5px"><span style="color:var(--text3)">Hedef: </span>${formatDate(x.hedefTar)}</div>`:''}
-          ${x.kapatmaTarihi?`<div style="font-size:11.5px"><span style="color:var(--text3)">Kapatma: </span>${formatDate(x.kapatmaTarihi)}</div>`:''}
-        </div>
-      </div>
-      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.01)">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          ${fileCount>0?`<button onclick="showUygFiles('${x.id}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">📎 ${fileCount} dosya</button>`:'<span style="font-size:11px;color:var(--text3)">Dosya yok</span>'}
-        </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="openUygModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">${icon('edit-2',12)} Düzenle</button>
-          <button onclick="deleteUyg('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">${icon('trash-2',12)} Sil</button>
-        </div>
-      </div>
+      ${i<4?`<div style="flex:1;height:2px;background:${tamamlandi&&i<simdiki-1?'var(--accent)':'var(--border)'};margin:0 2px;margin-bottom:12px"></div>`:''}
     </div>`;
   }).join('');
+
+  // Aksiyon butonları
+  let aksiyonlar='';
+  if((x.durum==='Onay Bekliyor'||x.durum==='2.Onay Bekliyor')&&canEdit('uygunsuzluklar')){
+    aksiyonlar+=`<button onclick="uygOnayla('${x.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(22,163,74,.5);background:rgba(22,163,74,.1);color:#16a34a;cursor:pointer;font-size:12px;font-weight:600">✅ Onayla</button>`;
+  }
+  if(x.durum==='Analiz Bekliyor'&&canEdit('uygunsuzluklar')){
+    aksiyonlar+=`<button onclick="openAnalizModal('${x.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(79,107,240,.5);background:rgba(79,107,240,.1);color:#7b9ff5;cursor:pointer;font-size:12px;font-weight:600">🔍 Analiz Gir</button>`;
+  }
+  if(x.durum==='Kapatma Bekliyor'&&canEdit('uygunsuzluklar')){
+    aksiyonlar+=`<button onclick="openKapatmaModal('${x.id}')" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(139,92,246,.5);background:rgba(139,92,246,.1);color:#a78bfa;cursor:pointer;font-size:12px;font-weight:600">📋 Kapat</button>`;
+  }
+
+  return `<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--border);transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.3)'" onmouseout="this.style.boxShadow=''">
+    <!-- Başlık -->
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:8px;background:rgba(${x.durum==='Kapatıldı'?'22,163,74':x.durum==='Analiz Bekliyor'?'79,107,240':x.durum==='Kapatma Bekliyor'?'139,92,246':'245,158,11'},.15);display:flex;align-items:center;justify-content:center;font-size:16px">${durumEmoji[x.durum]||'⚠️'}</div>
+        <div>
+          <div style="font-weight:700;font-size:14px">${x.no||'-'}</div>
+          <div style="font-size:11px;color:var(--text3)">${formatDate(x.tarih)} · Tespit: ${x.tespitEden||'-'}</div>
+        </div>
+      </div>
+      <span class="badge ${durumBadge[x.durum]||'badge-gray'}">${x.durum||'-'}</span>
+    </div>
+    <!-- Aşama bar -->
+    <div style="padding:8px 16px;background:rgba(0,0,0,.15);display:flex;align-items:center;gap:0">${asamaBar}</div>
+    <!-- İçerik -->
+    <div style="padding:14px 16px">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5">${x.aciklama||'-'}</div>
+      ${x.onaylayan?`<div style="font-size:11.5px;margin-bottom:6px"><span style="color:var(--text3)">Onaylayan: </span>${x.onaylayan} · ${formatDate(x.onayTarihi)}</div>`:''}
+      ${x.kaplam?`<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--text3);font-weight:700;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Kaplam / Kök Neden</div><div style="font-size:12px;color:var(--text2);line-height:1.4">${x.kaplam}</div></div>`:''}
+      ${x.duzeltici?`<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--text3);font-weight:700;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Düzeltici Faaliyet</div><div style="font-size:12px;color:var(--text2);line-height:1.4">${x.duzeltici}</div></div>`:''}
+      ${x.kapatmaAciklama?`<div style="margin-bottom:6px"><div style="font-size:10px;color:var(--text3);font-weight:700;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px">Kapatma Açıklaması</div><div style="font-size:12px;color:var(--text2);line-height:1.4">${x.kapatmaAciklama}</div></div>`:''}
+      ${x.sorumlu||x.hedefTar||x.kapatmaTarihi?`<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;border-top:1px solid var(--border);padding-top:8px;margin-top:4px">
+        ${x.sorumlu?`<div><span style="color:var(--text3)">Sorumlu: </span>${x.sorumlu}</div>`:''}
+        ${x.hedefTar?`<div><span style="color:var(--text3)">Hedef: </span>${formatDate(x.hedefTar)}</div>`:''}
+        ${x.kapatmaTarihi?`<div><span style="color:var(--text3)">Kapatıldı: </span>${formatDate(x.kapatmaTarihi)}</div>`:''}
+      </div>`:''}
+    </div>
+    <!-- Footer -->
+    <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${aksiyonlar}
+        ${files.length?`<button onclick="uygDosyaListeGoster('${x.id}')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.15);color:var(--accent);cursor:pointer;font-size:12px;font-weight:600">📎 ${files.length} belge</button>`:'<span style="font-size:11px;color:var(--text3)">Belge yok</span>'}
+      </div>
+      <div style="display:flex;gap:6px">
+        ${canEdit('uygunsuzluklar')?`<button onclick="openDuzenleUygModal('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">✏ Düzenle</button>`:''}
+        ${canEdit('uygunsuzluklar')?`<button onclick="deleteUyg('${x.id}')" style="padding:5px 10px;border-radius:6px;border:1px solid rgba(220,38,38,.4);background:transparent;color:#ef4444;cursor:pointer;font-size:12px">🗑 Sil</button>`:''}
+      </div>
+    </div>
+  </div>`;
 }
 
-function uploadUygFile(id){
-  const inp=document.createElement('input');
-  inp.type='file';
-  inp.multiple=true;
-  inp.accept='application/pdf,.xlsx,.xls';
-  inp.onchange=e=>{
-    const files=Array.from(e.target.files);
-    try{document.body.removeChild(inp);}catch(e){}
-    if(!files.length) return;
-    let loaded=0;
-    files.forEach(f=>{
-      const reader=new FileReader();
-      reader.onload=ev=>{
-        const items=DB.get('uygunsuzluklar')||[];
-        const i=items.findIndex(x=>x.id===id); if(i<0) return;
-        if(!items[i].files) items[i].files=[];
-        items[i].files.push({name:f.name,size:f.size,tarih:today(),type:f.type,data:ev.target.result});
-        DB.set('uygunsuzluklar',items);
-        loaded++;
-        if(loaded===files.length){ toast(loaded+' dosya eklendi','success'); renderUygCards(); }
-      };
-      reader.readAsDataURL(f);
-    });
-  };
-  inp.style.display='none';
-  document.body.appendChild(inp);
-  inp.click();
-}
-
-function showUygFiles(id){
-  const items=DB.get('uygunsuzluklar')||[];
-  const x=items.find(x=>x.id===id); if(!x) return;
+function uygDosyaListeGoster(id){
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
   const files=x.files||[];
-  if(!files.length){toast('Dosya yok','info');return;}
+  if(!files.length){toast('Belge yok','info');return;}
   const ov=document.createElement('div');
-  ov.className='modal-overlay open';
-  ov.style.zIndex=3000;
+  ov.className='modal-overlay open';ov.style.zIndex=3000;
   ov.innerHTML=`<div class="modal" style="max-width:480px">
-    <div class="modal-header"><div class="modal-title">📎 ${x.no} - Dosyalar</div><div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div></div>
-    <div class="modal-body" style="padding:16px">
-      ${files.map((f,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:20px">${f.type==='application/pdf'?'📄':'📊'}</span>
-          <div><div style="font-size:13px;font-weight:600">${f.name}</div><div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size)} · ${f.tarih||''}</div></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="icon-btn" onclick="previewFile(${JSON.stringify(f).replace(/"/g,'&quot;')})" title="Önizle">👁</button>
-          <button class="icon-btn" onclick="downloadUygFile('${id}',${i})" title="İndir">⬇</button>
-          ${canEdit('uygunsuzluklar')?`<button class="icon-btn" onclick="deleteUygFile('${id}',${i});this.closest('.modal-overlay').remove();showUygFiles('${id}')" style="color:var(--danger)" title="Sil">🗑</button>`:''}
-        </div>
-      </div>`).join('')}
+    <div class="modal-header">
+      <div class="modal-title">📎 ${x.no} — Belgeler</div>
+      <div class="modal-close" onclick="this.closest('.modal-overlay').remove()">&#10005;</div>
+    </div>
+    <div class="modal-body" style="padding:16px;display:flex;flex-direction:column;gap:8px">
+      ${files.map((f,fi)=>{
+        const isPdf=f.type==='application/pdf'||f.name?.toLowerCase().endsWith('.pdf');
+        const isXls=f.name?.toLowerCase().match(/\.xlsx?$/);
+        const emoji=isPdf?'📄':isXls?'📊':'📎';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)">
+          <span style="font-size:22px">${emoji}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.name}</div>
+            <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size||0)} · ${f.tarih||''}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="uygDosyaOnizle('${id}',${fi})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px">👁 Önizle</button>
+            <button onclick="uygDosyaIndir('${id}',${fi})" style="padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">⬇ İndir</button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
   document.body.appendChild(ov);
 }
 
-function downloadUygFile(id,idx){
-  const items=DB.get('uygunsuzluklar')||[];
-  const x=items.find(x=>x.id===id); if(!x) return;
-  const f=x.files[idx]; if(!f) return;
-  const a=document.createElement('a');
-  a.href=f.data; a.download=f.name; a.click();
+// ===== YENİ UYGUNSUZLUK MODALİ =====
+function openYeniUygModal(){
+  if(!document.getElementById('uyg-yeni-modal')) buildYeniUygModal();
+  // Reset form
+  document.getElementById('u-no').value='';
+  document.getElementById('u-tarih').value=today();
+  document.getElementById('u-kategori').value='';
+  document.getElementById('u-aciklama').value='';
+  document.getElementById('u-tespit').value='';
+  document.getElementById('u-onaylayacak').value='';
+  document.getElementById('uyg-yeni-modal-title').textContent='⚠️ Yeni Uygunsuzluk';
+  _editUygId=null;
+  openModal('uyg-yeni-modal');
 }
 
-function deleteUygFile(id,idx){
-  const items=DB.get('uygunsuzluklar')||[];
-  const i=items.findIndex(x=>x.id===id); if(i<0) return;
-  items[i].files.splice(idx,1);
-  DB.set('uygunsuzluklar',items);
-}
-
-function deleteUyg(id){
-  if(!confirm('Silmek istediğinize emin misiniz?')) return;
-  const items=(DB.get('uygunsuzluklar')||[]).filter(x=>x.id!==id);
-  DB.set('uygunsuzluklar',items);
-  toast('Silindi','success');
-  renderUygCards();
-}
-
-function updateUygDurum(id,val){
-  const items=DB.get('uygunsuzluklar')||[];
-  const i=items.findIndex(x=>x.id===id);
-  if(i<0)return;
-  const old=items[i].durum;
-  items[i].durum=val;
-  if(val==='Kapatıldı'&&!items[i].kapatmaTarihi) items[i].kapatmaTarihi=today();
-  DB.set('uygunsuzluklar',items);
-  const u=getActiveUser();
-  logHistory('uygunsuzlukHistory',{actionType:'status_change',itemId:id,user:u?`${u.ad} ${u.soyad}`:'',changes:{old,new:val},snapshot:{...items[i]},cihazAdi:items[i].no});
-  renderUygTable();
-  toast('Durum güncellendi','success');
-}
-
-async function deleteUyg(id){
-  const ok=await confirm('Bu uygunsuzluk silinecek. Emin misiniz?');
-  if(!ok)return;
-  const items=DB.get('uygunsuzluklar')||[];
-  const x=items.find(i=>i.id===id);
-  const u=getActiveUser();
-  logHistory('uygunsuzlukHistory',{actionType:'delete',itemId:id,user:u?`${u.ad} ${u.soyad}`:'',snapshot:x,cihazAdi:x?.no});
-  DB.set('uygunsuzluklar',items.filter(i=>i.id!==id));
-  toast('Silindi','success');
-  renderUygTable();
-}
-
-function uploadUygFile(id, fileType){
-  const inp=document.createElement('input');
-  inp.type='file';
-  inp.accept=fileType==='pdf'?'application/pdf':'.doc,.docx,.xls,.xlsx';
-  inp.onchange=e=>{
-    const f=e.target.files[0];if(!f)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const items=DB.get('uygunsuzluklar')||[];
-      const i=items.findIndex(x=>x.id===id);if(i<0)return;
-      const u=getActiveUser();
-      if(fileType==='pdf') items[i].pdfFile={name:f.name,size:f.size,data:ev.target.result,type:f.type};
-      else items[i].officeFile={name:f.name,size:f.size,data:ev.target.result,type:f.type};
-      DB.set('uygunsuzluklar',items);
-      logHistory('uygunsuzlukHistory',{actionType:'file_upload',itemId:id,user:u?`${u.ad} ${u.soyad}`:'',changes:{old:'',new:f.name},snapshot:{...items[i]},cihazAdi:items[i].no});
-      renderUygTable();
-      toast(`${fileType==='pdf'?'PDF':'Word/Excel'} yüklendi: ${f.name}`,'success');
-    };
-    reader.readAsDataURL(f);
-  };
-  inp.click();
-}
-
-function previewUygFile(id, fileType){
-  const item=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);
-  if(!item)return;
-  const file=fileType==='pdf'?item.pdfFile:item.officeFile;
-  if(!file){toast('Dosya bulunamadı','error');return;}
-  previewFile(file);
-}
-
-function addUygModal(){
+function buildYeniUygModal(){
+  const persons=DB.get('personeller')||[];
   const div=document.createElement('div');
-  div.innerHTML=`<div class="modal-overlay" id="uyg-modal">
-    <div class="modal modal-lg"><div class="modal-header"><div class="modal-title" id="uyg-modal-title">Uygunsuzluk Ekle</div><div class="modal-close" onclick="closeModal('uyg-modal')">${icon('x-circle',16)}</div></div>
-    <div class="tabs" style="padding:0 20px;border-bottom:1px solid var(--border)">
-      <div class="tab active" onclick="switchUygTab('bilgiler',this)">Bilgiler</div>
-      <div class="tab" onclick="switchUygTab('dosyalar',this)">Dosyalar</div>
-    </div>
-    <div id="uyg-tab-bilgiler" class="modal-body">
-      <div class="form-row">
-        <div class="form-group"><label>Uygunsuzluk Numarası</label><input id="u-no" type="text" placeholder="ör. UYG-001"></div>
-        <div class="form-group"><label>Uygunsuzluk Tarihi</label><input id="u-tarih" type="date"></div>
+  div.innerHTML=`<div id="uyg-yeni-modal" class="modal-overlay">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <div class="modal-title" id="uyg-yeni-modal-title">⚠️ Yeni Uygunsuzluk</div>
+        <div class="modal-close" onclick="closeModal('uyg-yeni-modal')">${icon('x-circle',16)}</div>
       </div>
-      <div class="form-group"><label>Uygunsuzluk Açıklaması</label><textarea id="u-aciklama" placeholder="Uygunsuzluğu detaylı açıklayın..." style="min-height:100px"></textarea></div>
-      <div class="form-row">
-        <div class="form-group"><label>Durum</label><select id="u-durum"><option>Açık</option><option>Devam Ediyor</option><option>Kapatıldı</option></select></div>
-        <div class="form-group"><label>En Son Kapatma Tarihi</label><input id="u-kapatma" type="date"></div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Uygunsuzluk No <span style="color:var(--danger)">*</span></label>
+            <input id="u-no" type="text" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px" placeholder="örn. UYG-2026-001">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Tarih</label>
+            <input id="u-tarih" type="date" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Kategori</label>
+          <input id="u-kategori" type="text" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px" placeholder="örn. Kalibrasyon, Doküman, Ekipman...">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Uygunsuzluk Açıklaması <span style="color:var(--danger)">*</span></label>
+          <textarea id="u-aciklama" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;min-height:90px;resize:vertical" placeholder="Uygunsuzluğu detaylı açıklayın..."></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Tespit Eden</label>
+            <select id="u-tespit" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+              <option value="">Seçiniz...</option>
+              ${persons.map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Onaylayacak Kişi <span style="color:var(--danger)">*</span></label>
+            <select id="u-onaylayacak" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+              <option value="">Seçiniz...</option>
+              ${persons.map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad}</option>`).join('')}
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="form-group"><label>Kaplam (Kök Neden Analizi)</label><textarea id="u-kaplam" placeholder="Uygunsuzluğun kök nedenini açıklayın..." style="min-height:80px"></textarea></div>
-      <div class="form-group"><label>Düzeltici Faaliyet</label><textarea id="u-duzeltici" placeholder="Alınan veya planlan düzeltici faaliyetleri açıklayın..." style="min-height:80px"></textarea></div>
-      <div class="form-row">
-        <div class="form-group"><label>Düzeltici Faaliyet Sorumlusu</label><input id="u-sorumlu" type="text" placeholder="Ad Soyad"></div>
-        <div class="form-group"><label>Hedef Tamamlanma Tarihi</label><input id="u-hedef-tar" type="date"></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('uyg-modal')">İptal</button><button class="btn btn-primary" onclick="saveUyg()">Kaydet</button></div>
-    </div>
-    <div id="uyg-tab-dosyalar" class="modal-body" style="display:none">
-      <div id="uyg-dosya-listesi" style="display:flex;flex-direction:column;gap:10px"></div>
-      <div style="margin-top:16px">
-        <button onclick="uploadUygModalFile()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:2px dashed var(--accent);background:rgba(0,212,170,.05);color:var(--accent);cursor:pointer;font-size:13px;width:100%;justify-content:center">
-          ${icon('upload',16)} + Dosya Ekle (PDF veya Excel)
-        </button>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('uyg-yeni-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveYeniUyg()">📤 Onaya Gönder</button>
       </div>
     </div>
   </div>`;
   document.getElementById('content').appendChild(div);
 }
 
-let _editUygId=null;
-function openUygModal(id){
-  _editUygId=id;
-  document.getElementById('uyg-modal-title').textContent=id?'Uygunsuzluk Düzenle':'Uygunsuzluk Ekle';
-  if(id){
-    const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
-    document.getElementById('u-no').value=x.no||'';
-    document.getElementById('u-aciklama').value=x.aciklama||'';
-    document.getElementById('u-tarih').value=x.tarih||'';
-    document.getElementById('u-durum').value=x.durum||'Açık';
-    document.getElementById('u-kapatma').value=x.kapatmaTarihi||'';
-    document.getElementById('u-kaplam').value=x.kaplam||'';
-    document.getElementById('u-duzeltici').value=x.duzelticiFailiyet||'';
-    document.getElementById('u-sorumlu').value=x.sorumlu||'';
-    document.getElementById('u-hedef-tar').value=x.hedefTar||'';
-  } else {
-    document.getElementById('u-no').value='';
-    document.getElementById('u-aciklama').value='';
-    document.getElementById('u-tarih').value=today();
-    document.getElementById('u-durum').value='Açık';
-    document.getElementById('u-kapatma').value='';
-    document.getElementById('u-kaplam').value='';
-    document.getElementById('u-duzeltici').value='';
-    document.getElementById('u-sorumlu').value='';
-    document.getElementById('u-hedef-tar').value='';
-  }
-  openModal('uyg-modal');
-}
-
-function saveUyg(){
+function saveYeniUyg(){
   const no=document.getElementById('u-no').value.trim();
   const aciklama=document.getElementById('u-aciklama').value.trim();
-  if(!no||!aciklama){toast('Numara ve açıklama zorunlu','error');return;}
+  const onaylayacak=document.getElementById('u-onaylayacak').value;
+  if(!no){toast('Uygunsuzluk No zorunlu','error');return;}
+  if(!aciklama){toast('Açıklama zorunlu','error');return;}
+  if(!onaylayacak){toast('Onaylayacak kişi seçin','error');return;}
   const items=DB.get('uygunsuzluklar')||[];
   const u=getActiveUser();
-  const data={no,aciklama,tarih:document.getElementById('u-tarih').value,durum:document.getElementById('u-durum').value,kapatmaTarihi:document.getElementById('u-kapatma').value,
-    kaplam:document.getElementById('u-kaplam').value,
-    duzelticiFailiyet:document.getElementById('u-duzeltici').value,
-    sorumlu:document.getElementById('u-sorumlu').value,
-    hedefTar:document.getElementById('u-hedef-tar').value};
   if(_editUygId){
     const i=items.findIndex(x=>x.id===_editUygId);
     if(i>=0){
-      logHistory('uygunsuzlukHistory',{actionType:'update',itemId:_editUygId,user:u?`${u.ad} ${u.soyad}`:'',snapshot:{...items[i],...data},cihazAdi:no});
-      items[i]={...items[i],...data};
+      items[i]={...items[i],no,aciklama,tarih:document.getElementById('u-tarih').value,
+        kategori:document.getElementById('u-kategori').value,
+        tespitEden:document.getElementById('u-tespit').value,
+        onaylayacak,
+        // Düzenlemede aşamayı sıfırla
+        durum:'Onay Bekliyor',
+        onaylayan:'',onayTarihi:'',
+        kaplam:'',kokNeden:'',duzeltici:'',analizTarihi:'',
+        kapatmaAciklama:'',kapatmaTarihi:'',kapatan:'',files:[]};
     }
   } else {
-    const newItem={id:uid(),...data,createdAt:new Date().toISOString()};
-    items.push(newItem);
-    logHistory('uygunsuzlukHistory',{actionType:'create',itemId:newItem.id,user:u?`${u.ad} ${u.soyad}`:'',snapshot:newItem,cihazAdi:no});
+    items.push({id:uid(),no,aciklama,tarih:document.getElementById('u-tarih').value,
+      kategori:document.getElementById('u-kategori').value,
+      tespitEden:document.getElementById('u-tespit').value,
+      onaylayacak,durum:'Onay Bekliyor',
+      olusturmaTarihi:new Date().toISOString(),
+      olusturan:u?`${u.ad} ${u.soyad}`:'',
+      files:[]});
   }
   DB.set('uygunsuzluklar',items);
-  closeModal('uyg-modal');
-  renderUygTable();
-  toast('Uygunsuzluk kaydedildi','success');
+  closeModal('uyg-yeni-modal');
+  toast(_editUygId?'Düzenlendi, aşama sıfırlandı':'Uygunsuzluk kaydedildi','success');
+  renderUygCards();
 }
+
+function openDuzenleUygModal(id){
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  if(!document.getElementById('uyg-yeni-modal')) buildYeniUygModal();
+  _editUygId=id;
+  document.getElementById('uyg-yeni-modal-title').textContent='✏️ Uygunsuzluk Düzenle';
+  document.getElementById('u-no').value=x.no||'';
+  document.getElementById('u-tarih').value=x.tarih||'';
+  document.getElementById('u-kategori').value=x.kategori||'';
+  document.getElementById('u-aciklama').value=x.aciklama||'';
+  document.getElementById('u-tespit').value=x.tespitEden||'';
+  document.getElementById('u-onaylayacak').value=x.onaylayacak||'';
+  openModal('uyg-yeni-modal');
+}
+
+// ===== ONAY =====
+function uygOnayla(id){
+  const items=DB.get('uygunsuzluklar')||[];
+  const i=items.findIndex(x=>x.id===id);if(i<0)return;
+  const u=getActiveUser();
+  const simdikiDurum=items[i].durum;
+  if(simdikiDurum==='Onay Bekliyor'){
+    // 1. Onay → Analiz aşamasına geç
+    items[i].durum='Analiz Bekliyor';
+    items[i].onaylayan=u?`${u.ad} ${u.soyad}`:'';
+    items[i].onayTarihi=today();
+    toast('Onaylandı! Analiz aşamasına geçildi 🔍','success');
+  } else if(simdikiDurum==='2.Onay Bekliyor'){
+    // 2. Onay → Kapatma aşamasına geç
+    items[i].durum='Kapatma Bekliyor';
+    items[i].onaylayan2=u?`${u.ad} ${u.soyad}`:'';
+    items[i].onayTarihi2=today();
+    toast('2. Onay tamamlandı! Kapatma aşamasına geçildi 📋','success');
+  }
+  DB.set('uygunsuzluklar',items);
+  renderUygCards();
+}
+
+// ===== ANALİZ MODALİ =====
+function openAnalizModal(id){
+  if(!document.getElementById('uyg-analiz-modal')) buildAnalizModal();
+  _editUygId=id;
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  document.getElementById('ua-kaplam').value=x.kaplam||'';
+  document.getElementById('ua-kokNeden').value=x.kokNeden||'';
+  document.getElementById('ua-duzeltici').value=x.duzeltici||'';
+  document.getElementById('ua-sorumlu').value=x.sorumlu||'';
+  document.getElementById('ua-hedefTar').value=x.hedefTar||'';
+  openModal('uyg-analiz-modal');
+}
+
+function buildAnalizModal(){
+  const persons=DB.get('personeller')||[];
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="uyg-analiz-modal" class="modal-overlay">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <div class="modal-title">🔍 Kaplam & Kök Neden Analizi</div>
+        <div class="modal-close" onclick="closeModal('uyg-analiz-modal')">${icon('x-circle',16)}</div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div style="background:rgba(79,107,240,.08);border:1px solid rgba(79,107,240,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text3)">
+          ℹ️ Analiz kaydedildikten sonra kayıt <b style="color:var(--text2)">Kapatma Bekliyor</b> aşamasına geçer ve tekrar onay için bekler.
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Kaplam (Etki Alanı) <span style="color:var(--danger)">*</span></label>
+          <textarea id="ua-kaplam" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;min-height:70px;resize:vertical" placeholder="Uygunsuzluğun etkilediği alan, süreç veya kişiler..."></textarea>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Kök Neden Analizi <span style="color:var(--danger)">*</span></label>
+          <textarea id="ua-kokNeden" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;min-height:80px;resize:vertical" placeholder="5-Neden, Balık Kılçığı vb. yöntem ile kök neden..."></textarea>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Düzeltici Faaliyet Planı <span style="color:var(--danger)">*</span></label>
+          <textarea id="ua-duzeltici" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;min-height:70px;resize:vertical" placeholder="Yapılacak düzeltici faaliyetler..."></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Sorumlu</label>
+            <select id="ua-sorumlu" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+              <option value="">Seçiniz...</option>
+              ${persons.map(p=>`<option value="${p.ad} ${p.soyad}">${p.ad} ${p.soyad}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Hedef Tarih</label>
+            <input id="ua-hedefTar" type="date" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('uyg-analiz-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveAnaliz()">💾 Kaydet → Kapatmaya Gönder</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function saveAnaliz(){
+  const kaplam=document.getElementById('ua-kaplam').value.trim();
+  const kokNeden=document.getElementById('ua-kokNeden').value.trim();
+  const duzeltici=document.getElementById('ua-duzeltici').value.trim();
+  if(!kaplam||!kokNeden||!duzeltici){toast('Kaplam, Kök Neden ve Düzeltici Faaliyet zorunlu','error');return;}
+  const items=DB.get('uygunsuzluklar')||[];
+  const i=items.findIndex(x=>x.id===_editUygId);if(i<0)return;
+  items[i].kaplam=kaplam;
+  items[i].kokNeden=kokNeden;
+  items[i].duzeltici=duzeltici;
+  items[i].sorumlu=document.getElementById('ua-sorumlu').value;
+  items[i].hedefTar=document.getElementById('ua-hedefTar').value;
+  items[i].durum='2.Onay Bekliyor';
+  items[i].analizTarihi=today();
+  DB.set('uygunsuzluklar',items);
+  closeModal('uyg-analiz-modal');
+  toast('Analiz kaydedildi! 2. Onay bekleniyor ⏳','success');
+  renderUygCards();
+}
+
+// ===== KAPATMA MODALİ =====
+function openKapatmaModal(id){
+  if(!document.getElementById('uyg-kapatma-modal')) buildKapatmaModal();
+  _editUygId=id;
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  document.getElementById('uk-aciklama').value=x.kapatmaAciklama||'';
+  document.getElementById('uk-tarih').value=x.kapatmaTarihi||today();
+  // Analiz özetini göster
+  const ozetEl=document.getElementById('uk-analiz-ozet');
+  if(x.kaplam||x.duzeltici){
+    ozetEl.style.display='block';
+    document.getElementById('uk-analiz-kaplam').innerHTML=x.kaplam?`<b>Kaplam:</b> ${x.kaplam}`:'';
+    document.getElementById('uk-analiz-duzeltici').innerHTML=x.duzeltici?`<b>Planlanan Düzeltici:</b> ${x.duzeltici}`:'';
+  } else {
+    ozetEl.style.display='none';
+  }
+  // Dosyaları DB'den yükle (modal açılışında bir kez)
+  _uygKapatmaDosyalar=JSON.parse(JSON.stringify(x.files||[]));
+  // Sekmeyi sıfırla
+  switchUygKapatmaTab('bilgi');
+  renderUygKapatmaDosyalar();
+  openModal('uyg-kapatma-modal');
+}
+
+function buildKapatmaModal(){
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="uyg-kapatma-modal" class="modal-overlay">
+    <div class="modal" style="max-width:580px">
+      <div class="modal-header">
+        <div class="modal-title">📋 Uygunsuzluk Kapatma</div>
+        <div class="modal-close" onclick="closeModal('uyg-kapatma-modal')">${icon('x-circle',16)}</div>
+      </div>
+      <!-- Sekmeler -->
+      <div style="display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--bg2)">
+        <button id="ukt-bilgi" onclick="switchUygKapatmaTab('bilgi')" style="padding:10px 18px;border:none;background:transparent;color:var(--accent);font-weight:600;font-size:13px;border-bottom:2px solid var(--accent);cursor:pointer">📝 Kapatma Bilgisi</button>
+        <button id="ukt-dos" onclick="switchUygKapatmaTab('dos')" style="padding:10px 18px;border:none;background:transparent;color:var(--text3);font-size:13px;cursor:pointer">📎 Belgeler</button>
+      </div>
+      <!-- Bilgi Sekmesi -->
+      <div id="ukp-bilgi" class="modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div id="uk-analiz-ozet" style="background:rgba(79,107,240,.08);border:1px solid rgba(79,107,240,.25);border-radius:8px;padding:10px 14px;font-size:12px;display:none">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Analiz Özeti</div>
+          <div id="uk-analiz-kaplam" style="color:var(--text2);margin-bottom:4px"></div>
+          <div id="uk-analiz-duzeltici" style="color:var(--text2)"></div>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Kapatma Açıklaması — Gerçekleşen Düzeltici Faaliyet <span style="color:var(--danger)">*</span></label>
+          <textarea id="uk-aciklama" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px;min-height:100px;resize:vertical" placeholder="Yapılan düzeltici faaliyet, sonuç ve kapatma gerekçesi..."></textarea>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">Kapatma Tarihi</label>
+          <input id="uk-tarih" type="date" style="width:100%;padding:10px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);font-size:13px">
+        </div>
+      </div>
+      <!-- Dosyalar Sekmesi -->
+      <div id="ukp-dos" class="modal-body" style="display:none;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:13px;font-weight:600">PDF veya Excel Belgeler</div>
+          <button onclick="uploadUygKapatmaDosya()" style="padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:12px">+ Dosya Ekle</button>
+        </div>
+        <div id="uyg-kapatma-dosyalar"></div>
+        <div style="padding:10px;background:rgba(0,0,0,.1);border-radius:6px;font-size:11px;color:var(--text3)">
+          ℹ️ PDF ve Excel dosyaları yüklenebilir. Kapatma belgesi, sertifika vb.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('uyg-kapatma-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveKapatma()" style="background:#16a34a;border-color:#16a34a">✅ Uygunsuzluğu Kapat</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+}
+
+function switchUygKapatmaTab(tab){
+  document.getElementById('ukp-bilgi').style.display=tab==='bilgi'?'flex':'none';
+  document.getElementById('ukp-dos').style.display=tab==='dos'?'flex':'none';
+  document.getElementById('ukt-bilgi').style.color=tab==='bilgi'?'var(--accent)':'var(--text3)';
+  document.getElementById('ukt-bilgi').style.borderBottom=tab==='bilgi'?'2px solid var(--accent)':'2px solid transparent';
+  document.getElementById('ukt-dos').style.color=tab==='dos'?'var(--accent)':'var(--text3)';
+  document.getElementById('ukt-dos').style.borderBottom=tab==='dos'?'2px solid var(--accent)':'2px solid transparent';
+  if(tab==='dos') renderUygKapatmaDosyalar();
+}
+
+let _uygKapatmaDosyalar=[];
+
+function renderUygKapatmaDosyalar(){
+  const el=document.getElementById('uyg-kapatma-dosyalar');if(!el)return;
+  if(!_uygKapatmaDosyalar.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center">Henüz dosya eklenmedi</div>';return;}
+  el.innerHTML=_uygKapatmaDosyalar.map((f,i)=>{
+    const isPdf=f.type==='application/pdf'||f.name?.toLowerCase().endsWith('.pdf');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,0,0,.05);border-radius:6px;border:1px solid var(--border);margin-bottom:6px">
+      <span style="font-size:20px">${isPdf?'📄':'📊'}</span>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${f.name}</div>
+        <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size||0)} · ${f.tarih||''}</div>
+      </div>
+      <button onclick="uygDosyaOnizleTemp(${i})" style="padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:11px">👁 Önizle</button>
+      <button onclick="uygDosyaIndirTemp(${i})" style="padding:4px 10px;border-radius:5px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:11px">⬇ İndir</button>
+      <button onclick="_uygKapatmaDosyalar.splice(${i},1);renderUygKapatmaDosyalar()" style="padding:4px 8px;border-radius:5px;border:1px solid rgba(220,38,38,.3);background:transparent;color:#ef4444;cursor:pointer;font-size:11px">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function uploadUygKapatmaDosya(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.multiple=true;
+  inp.accept='application/pdf,.xlsx,.xls';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.onchange=e=>{
+    try{document.body.removeChild(inp);}catch(err){}
+    Array.from(e.target.files||[]).forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        _uygKapatmaDosyalar.push({name:file.name,size:file.size,type:file.type,data:ev.target.result,tarih:today()});
+        renderUygKapatmaDosyalar();
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  inp.click();
+}
+
+function uygDosyaOnizleTemp(i){
+  const f=_uygKapatmaDosyalar[i];if(!f)return;
+  _uygPreviewFile(f);
+}
+
+function uygDosyaIndirTemp(i){
+  const f=_uygKapatmaDosyalar[i];if(!f)return;
+  const a=document.createElement('a');a.href=f.data;a.download=f.name;a.click();
+}
+
+function uygDosyaOnizle(id,fi){
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  const f=x.files[fi];if(!f)return;
+  _uygPreviewFile(f);
+}
+
+function uygDosyaIndir(id,fi){
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  const f=x.files[fi];if(!f)return;
+  const a=document.createElement('a');a.href=f.data;a.download=f.name;a.click();
+}
+
+function _uygPreviewFile(f){
+  const isPdf=f.type==='application/pdf'||f.name?.toLowerCase().endsWith('.pdf');
+  const isXls=f.name?.toLowerCase().match(/\.xlsx?$/);
+  if(isPdf){
+    const w=window.open('','_blank','width=950,height=750');
+    w.document.write(`<!DOCTYPE html><html><body style="margin:0"><iframe src="${f.data}" style="width:100%;height:100vh;border:none"></iframe></body></html>`);
+  } else if(isXls){
+    const w=window.open('','_blank','width=1000,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><title>${f.name}</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>
+      <style>body{font-family:sans-serif;margin:0;background:#1a1a2e;color:#e0e0e0}.tb{background:#16213e;padding:10px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #333}table{border-collapse:collapse;width:100%;font-size:12px}th{background:#2d3561;color:#fff;padding:6px 10px;border:1px solid #444;text-align:left}td{padding:5px 10px;border:1px solid #333;background:#1e1e2e}.sb{padding:4px 10px;border-radius:4px;border:1px solid #444;background:transparent;color:#ccc;cursor:pointer;font-size:12px}.sb.a{background:#4f6bf0;color:#fff;border-color:#4f6bf0}</style>
+    </head><body>
+    <div class="tb"><b>📊 ${f.name}</b><div id="st"></div><a href="${f.data}" download="${f.name}" style="margin-left:auto;padding:5px 12px;background:#4f6bf0;color:#fff;border-radius:6px;text-decoration:none;font-size:12px">⬇ İndir</a></div>
+    <div id="tc" style="padding:12px;overflow:auto">Yükleniyor...</div>
+    <script>const b64='${f.data.split(',')[1]||f.data}';const bin=atob(b64);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);const wb=XLSX.read(arr,{type:'array'});function show(n){document.querySelectorAll('.sb').forEach(b=>b.classList.toggle('a',b.dataset.n===n));document.getElementById('tc').innerHTML=XLSX.utils.sheet_to_html(wb.Sheets[n]);}wb.SheetNames.forEach(n=>{const b=document.createElement('button');b.className='sb';b.dataset.n=n;b.textContent=n;b.onclick=()=>show(n);document.getElementById('st').appendChild(b);});if(wb.SheetNames.length)show(wb.SheetNames[0]);<\/script>
+    </body></html>`);
+  } else {
+    toast('Bu dosya türü önizlenemez, indirin','warn');
+    const a=document.createElement('a');a.href=f.data;a.download=f.name;a.click();
+  }
+}
+
+function saveKapatma(){
+  const aciklama=document.getElementById('uk-aciklama').value.trim();
+  if(!aciklama){toast('Kapatma açıklaması zorunlu','error');return;}
+  const items=DB.get('uygunsuzluklar')||[];
+  const i=items.findIndex(x=>x.id===_editUygId);if(i<0)return;
+  items[i].kapatmaAciklama=aciklama;
+  items[i].kapatmaTarihi=document.getElementById('uk-tarih').value||today();
+  items[i].files=JSON.parse(JSON.stringify(_uygKapatmaDosyalar));
+  items[i].durum='Kapatıldı';
+  const u=getActiveUser();
+  items[i].kapatan=u?`${u.ad} ${u.soyad}`:'';
+  DB.set('uygunsuzluklar',items);
+  closeModal('uyg-kapatma-modal');
+  toast('Uygunsuzluk kapatıldı ✅','success');
+  renderUygCards();
+}
+
+function deleteUyg(id){
+  if(!confirm('Bu uygunsuzluk silinecek. Emin misiniz?')) return;
+  const items=(DB.get('uygunsuzluklar')||[]).filter(x=>x.id!==id);
+  DB.set('uygunsuzluklar',items);
+  toast('Silindi','success');
+  renderUygCards();
+}
+
+// ===== BELGE LİSTE MODALİ =====
+function uygDosyaListeGoster(id){
+  const x=(DB.get('uygunsuzluklar')||[]).find(x=>x.id===id);if(!x)return;
+  const files=x.files||[];
+  // Eski modalı kaldır
+  const eski=document.getElementById('uyg-dosya-liste-modal');
+  if(eski) eski.remove();
+  const div=document.createElement('div');
+  div.innerHTML=`<div id="uyg-dosya-liste-modal" class="modal-overlay">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <div class="modal-title">📎 Belgeler — ${x.no||''}</div>
+        <div class="modal-close" onclick="closeModal('uyg-dosya-liste-modal')">${icon('x-circle',16)}</div>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:8px">
+        ${files.length?files.map((f,fi)=>{
+          const isPdf=f.type==='application/pdf'||f.name?.toLowerCase().endsWith('.pdf');
+          const isXls=f.name?.toLowerCase().match(/\.xlsx?$/);
+          const emoji=isPdf?'📄':isXls?'📊':'📎';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,0,0,.1);border-radius:8px;border:1px solid var(--border)">
+            <span style="font-size:22px">${emoji}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.name}">${f.name}</div>
+              <div style="font-size:11px;color:var(--text3)">${formatFileSize(f.size||0)} · ${f.tarih||''}</div>
+            </div>
+            <button onclick="uygDosyaOnizle('${id}',${fi})" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;white-space:nowrap">👁 Önizle</button>
+            <button onclick="uygDosyaIndir('${id}',${fi})" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(0,212,170,.4);background:rgba(0,212,170,.1);color:var(--accent);cursor:pointer;font-size:12px;white-space:nowrap">⬇ İndir</button>
+          </div>`;
+        }).join(''):`<div style="text-align:center;color:var(--text3);padding:30px;font-size:13px">Belge bulunamadı</div>`}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('uyg-dosya-liste-modal')">Kapat</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('content').appendChild(div);
+  openModal('uyg-dosya-liste-modal');
+}
+
+// Eski fonksiyonlar (geçmiş sayfası için)
+function renderUygTable(){ renderUygCards(); }
+function switchUygTab(){}
+function renderUygModalFiles(){}
+function uploadUygModalFile(){}
+function uploadUygFile(){}
+function showUygFiles(){}
+function downloadUygFile(){}
+function deleteUygFile(){}
+function updateUygDurum(){}
+function previewUygFile(){}
+function addUygModal(){}
+function openUygModal(id){ if(id) openDuzenleUygModal(id); else openYeniUygModal(); }
+function saveUyg(){ saveYeniUyg(); }
 
 // ==================== UYGUNSUZLUK GEÇMİŞİ ====================
 function renderUygunsuzlukGecmisi(){
